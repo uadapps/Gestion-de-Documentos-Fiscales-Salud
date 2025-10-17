@@ -15,6 +15,10 @@ export default defineConfig({
         tailwindcss(),
         wayfinder({
             formVariants: true,
+            // En Windows Laragon el ejecutable php no siempre está en PATH cuando pnpm
+            // arranca vite; pasar la ruta absoluta evita que el plugin falle al invocar
+            // `php artisan wayfinder:generate`.
+            command: "C:\\laragon\\bin\\php\\php-8.3.26-Win32-vs16-x64\\php.exe artisan wayfinder:generate",
         }),
     ],
     esbuild: {
