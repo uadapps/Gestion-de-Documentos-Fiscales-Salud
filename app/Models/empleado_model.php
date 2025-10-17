@@ -10,27 +10,39 @@ class empleado_model extends Model
 
     protected $primaryKey = 'ID_Empleado';
 
+    protected $keyType = 'string';
+
+    public $incrementing = false;
+
     public $timestamps = false;
 
     protected $fillable = [
         'ID_Persona',
-        'Area',
+        'ID_Area',
         'ID_Campus',
+        'ID_Fotografia',
     ];
 
     protected $casts = [
-        'ID_Empleado' => 'integer',
-        'ID_Persona' => 'integer',
+        'ID_Empleado' => 'string',
+        'ID_Persona' => 'string',
+        'ID_Area' => 'string',
+        'ID_Campus' => 'string',
     ];
 
     public function persona()
     {
-        return $this->belongsTo(persona_model::class, 'ID_Persona');
+        return $this->belongsTo(persona_model::class, 'ID_Persona', 'Id_Persona');
+    }
+
+    public function area()
+    {
+        return $this->belongsTo(area_model::class, 'ID_Area');
     }
 
     public function campus()
     {
-        return $this->hasOne(campus_model::class, 'ID_Campus');
+        return $this->belongsTo(campus_model::class, 'ID_Campus');
     }
 
     public function usuario()
