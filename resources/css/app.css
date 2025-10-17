@@ -141,3 +141,359 @@
         @apply bg-background text-foreground;
     }
 }
+
+/* Custom animations for login page */
+@layer utilities {
+    .animation-delay-2000 {
+        animation-delay: 2s;
+    }
+
+    .animation-delay-4000 {
+        animation-delay: 4s;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes slideInLeft {
+        from {
+            opacity: 0;
+            transform: translateX(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    @keyframes float {
+        0%, 100% {
+            transform: translateY(0px);
+        }
+        50% {
+            transform: translateY(-20px);
+        }
+    }
+
+    @keyframes gradient-shift {
+        0%, 100% {
+            background-position: 0% 50%;
+        }
+        50% {
+            background-position: 100% 50%;
+        }
+    }
+
+    @keyframes shimmer {
+        0% {
+            transform: translateX(-100%);
+        }
+        100% {
+            transform: translateX(100%);
+        }
+    }
+
+    @keyframes shimmer-pendulum {
+        0% {
+            transform: translateX(-50%);
+        }
+        50% {
+            transform: translateX(50%);
+        }
+        100% {
+            transform: translateX(-50%);
+        }
+    }
+
+    @keyframes bounce-soft {
+        0%, 100% {
+            transform: translateY(0);
+        }
+        50% {
+            transform: translateY(-10px);
+        }
+    }
+
+    @keyframes glow {
+        0%, 100% {
+            box-shadow: 0 0 5px rgba(193, 2, 48, 0.3);
+        }
+        50% {
+            box-shadow: 0 0 20px rgba(193, 2, 48, 0.6), 0 0 30px rgba(193, 2, 48, 0.4);
+        }
+    }
+
+    .animate-fadeInUp {
+        animation: fadeInUp 0.8s ease-out forwards;
+    }
+
+    .animate-slideInLeft {
+        animation: slideInLeft 0.8s ease-out forwards;
+    }
+
+    .animate-float {
+        animation: float 3s ease-in-out infinite;
+    }
+
+    .animate-gradient-shift {
+        background-size: 200% 200%;
+        animation: gradient-shift 4s ease infinite;
+    }
+
+    .animate-shimmer {
+        animation: shimmer 2s ease-in-out infinite;
+    }
+
+    .animate-shimmer-pendulum {
+        animation: shimmer-pendulum 3s ease-in-out infinite;
+    }
+
+    .animate-bounce-soft {
+        animation: bounce-soft 2s ease-in-out infinite;
+    }
+
+    .animate-glow {
+        animation: glow 2s ease-in-out infinite;
+    }
+
+    /* 3D Door effects */
+    .rotate-y-45 {
+        transform: perspective(800px) rotateY(-45deg) translateX(-50px);
+        box-shadow: 20px 0 50px rgba(0, 0, 0, 0.5);
+    }
+
+    .rotate-y-minus-45 {
+        transform: perspective(800px) rotateY(45deg) translateX(50px);
+        box-shadow: -20px 0 50px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Keyframe for door opening */
+    @keyframes doorOpen {
+        0% {
+            transform: perspective(800px) rotateY(0deg) translateX(0px);
+        }
+        100% {
+            transform: perspective(800px) rotateY(-45deg) translateX(-50px);
+        }
+    }
+
+    @keyframes doorOpenRight {
+        0% {
+            transform: perspective(800px) rotateY(0deg) translateX(0px);
+        }
+        100% {
+            transform: perspective(800px) rotateY(45deg) translateX(50px);
+        }
+    }
+
+    /* Lock turning animation */
+    @keyframes unlocking {
+        0% { transform: rotate(0deg); }
+        50% { transform: rotate(45deg) scale(1.1); }
+        100% { transform: rotate(90deg) scale(1.2); }
+    }
+
+    /* Appearing logo animation */
+    @keyframes logoAppear {
+        0% {
+            transform: scale(0) rotate(180deg);
+            opacity: 0;
+        }
+        50% {
+            transform: scale(0.8) rotate(90deg);
+            opacity: 0.5;
+        }
+        100% {
+            transform: scale(1) rotate(0deg);
+            opacity: 1;
+        }
+    }
+
+    .animate-unlock {
+        animation: unlocking 1s ease-out forwards;
+    }
+
+    .animate-logo-appear {
+        animation: logoAppear 1s ease-out forwards;
+    }
+
+    /* Keyhole reveal animations */
+    @keyframes keyholeReveal {
+        0% {
+            clip-path: polygon(20% 40%, 52% 42%, 52% 60%, 48% 60%, 48% 42%);
+        }
+        50% {
+            clip-path: polygon(50% 20%, 60% 30%, 60% 70%, 40% 70%, 40% 30%);
+        }
+        100% {
+            clip-path: circle(100vmax at center);
+        }
+    }
+
+    @keyframes keyholeGlow {
+        0%, 100% {
+            filter: drop-shadow(0 0 5px #ffd700);
+        }
+        50% {
+            filter: drop-shadow(0 0 20px #ffd700) drop-shadow(0 0 30px #f59e0b);
+        }
+    }
+
+    .animate-keyhole-reveal {
+        animation: keyholeReveal 2.5s ease-out forwards;
+    }
+
+    .animate-keyhole-glow {
+        animation: keyholeGlow 2s ease-in-out infinite;
+    }
+
+    /* Fast keyhole expansion */
+    @keyframes fastExpansion {
+        0% {
+            transform: scale(1);
+            opacity: 0.8;
+        }
+        30% {
+            transform: scale(1.2);
+            opacity: 0.6;
+        }
+        100% {
+            transform: scale(50);
+            opacity: 0;
+        }
+    }
+
+    @keyframes quickZoom {
+        0% {
+            mask-size: 80px 80px;
+        }
+        60% {
+            mask-size: 150px 150px;
+        }
+        100% {
+            mask-size: 300vmax 300vmax;
+        }
+    }
+
+    .animate-fast-expansion {
+        animation: fastExpansion 1s ease-out forwards;
+    }
+
+    .animate-quick-zoom {
+        animation: quickZoom 1s ease-out forwards;
+    }
+
+    /* Responsive design improvements */
+    @media (max-width: 1024px) {
+        .lg\:w-1\/2 {
+            width: 100%;
+        }
+    }
+
+    /* Focus states improvements */
+    .focus-visible\:ring-blue-500:focus-visible {
+        --tw-ring-color: rgb(59 130 246);
+    }
+
+    /* Custom hover effects */
+    .hover-lift:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Smooth transitions */
+    .transition-all-smooth {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Medical theme gradient backgrounds */
+    .medical-gradient {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .medical-gradient-light {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    /* Glassmorphism effect */
+    .glass-effect {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    /* Ensure black background from start */
+    body {
+        background: #000 !important;
+        margin: 0;
+        padding: 0;
+    }
+
+    /* Keyhole mask effect */
+    #background-mask {
+        mask-image: url('/img/lock.svg');
+        mask-position: center 50%;
+        mask-repeat: no-repeat;
+        mask-size: 50px;
+        -webkit-mask-image: url('/img/lock.svg');
+        -webkit-mask-position: center 50%;
+        -webkit-mask-repeat: no-repeat;
+        -webkit-mask-size: 50px;
+    }
+
+    #background-mask.unlocked {
+        animation: lock-reveal 1.2s forwards ease-in-out;
+    }
+
+    @keyframes lock-reveal {
+        0% {
+            mask-size: 50px;
+            -webkit-mask-size: 50px;
+        }
+        100% {
+            mask-size: 2000vh;
+            -webkit-mask-size: 2000vh;
+        }
+    }
+
+    @keyframes lightPulse {
+        0% {
+            opacity: 0.4;
+            transform: scale(0.8);
+            filter: brightness(1);
+        }
+        50% {
+            opacity: 1;
+            transform: scale(1.1);
+            filter: brightness(1.5);
+        }
+        100% {
+            opacity: 0.7;
+            transform: scale(1);
+            filter: brightness(1.2);
+        }
+    }
+
+    @keyframes keyframes-expand {
+        0% {
+            mask-size: 25px;
+            -webkit-mask-size: 25px;
+            opacity: 1;
+        }
+        100% {
+            mask-size: 100px;
+            -webkit-mask-size: 100px;
+            opacity: 0;
+        }
+    }
+}
+
