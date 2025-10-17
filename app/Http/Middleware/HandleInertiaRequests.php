@@ -38,12 +38,52 @@ class HandleInertiaRequests extends Middleware
     {
         [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
 
+        $user = $request->user();
+        $enrichedUser = null;
+
+        if ($user) {
+            // Cargar las relaciones necesarias para obtener datos completos del usuario
+            $user->load([
+                'empleado.persona',
+                'empleado.campus',
+                'campus',
+                'roles'
+            ]);
+
+            // Obtener el rol principal (primer rol)
+            $rolPrincipal = $user->roles->first();
+
+            $enrichedUser = [
+                'id' => $user->ID_Usuario,
+                'name' => $user->Usuario,
+                'email' => $user->email,
+                'nombre_completo' => $user->nombre_completo,
+                'tiene_fotografia' => $user->empleado && !empty($user->empleado->ID_FOTOGRAFIA),
+                'rol_descripcion' => $rolPrincipal ? $rolPrincipal->Descripcion : null,
+                'campus' => $user->campus ? $user->campus->Campus : null,
+                'email_verified_at' => $user->email_verified_at,
+                'two_factor_enabled' => $user->two_factor_secret !== null,
+                'created_at' => $user->created_at,
+                'updated_at' => $user->updated_at,
+                // Datos adicionales del empleado
+                'empleado' => $user->empleado ? [
+                    'id' => $user->empleado->ID_Empleado,
+                    'area' => $user->empleado->Area,
+                    'persona' => $user->empleado->persona ? [
+                        'nombre' => $user->empleado->persona->Nombre,
+                        'paterno' => $user->empleado->persona->Paterno,
+                        'materno' => $user->empleado->persona->Materno,
+                    ] : null,
+                ] : null,
+            ];
+        }
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
-                'user' => $request->user(),
+                'user' => $enrichedUser,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];

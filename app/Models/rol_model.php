@@ -10,21 +10,25 @@ class rol_model extends Model
 
     protected $primaryKey = 'ID_Rol';
 
+    protected $keyType = 'string';
+
+    public $incrementing = false;
+
     public $timestamps = false;
 
     protected $fillable = [
-        'descripcion',
+        'Descripcion',
     ];
 
     protected $casts = [
-        'ID_Rol' => 'integer',
+        'ID_Rol' => 'string',
     ];
 
     /**
-     * Relación: un rol tiene muchos usuarios
+     * Relación muchos a muchos con usuarios a través de UsuariosRol
      */
     public function usuarios()
     {
-        return $this->hasMany(usuario_model::class, 'ID_Rol');
+        return $this->belongsToMany(usuario_model::class, 'UsuariosRol', 'ID_Rol', 'ID_Usuario');
     }
 }

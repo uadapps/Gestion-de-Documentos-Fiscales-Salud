@@ -28,6 +28,20 @@ class usuario_model extends Authenticatable
     protected $primaryKey = 'ID_Usuario';
 
     /**
+     * The "type" of the primary key ID.
+     *
+     * @var string
+     */
+    protected $keyType = 'string';
+
+    /**
+     * Indicates if the IDs are auto-incrementing.
+     *
+     * @var bool
+     */
+    public $incrementing = false;
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var list<string>
@@ -41,6 +55,7 @@ class usuario_model extends Authenticatable
         'Firma',
         'Activo',
         'ID_Campus',
+        'ID_Rol',
         'FraseSecreta',
         'FechaCambioPass',
         'TextoPlano',
@@ -71,6 +86,10 @@ class usuario_model extends Authenticatable
     protected function casts(): array
     {
         return [
+            'ID_Usuario' => 'string',
+            'ID_Empleado' => 'string',
+            'ID_Campus' => 'string',
+            'ID_Rol' => 'string',
             'email_verified_at' => 'datetime',
             'FechaCambioPass' => 'datetime',
             'Activo' => 'boolean',
@@ -142,5 +161,70 @@ class usuario_model extends Authenticatable
     public function getNameAttribute()
     {
         return $this->Usuario;
+    }
+
+    /**
+     * Relación con el empleado
+     */
+    public function empleado()
+    {
+        return $this->belongsTo(empleado_model::class, 'ID_Empleado');
+    }
+
+    /**
+     * Relación con el campus
+     */
+    public function campus()
+    {
+        return $this->belongsTo(campus_model::class, 'ID_Campus');
+    }
+
+    /**
+     * Relación muchos a muchos con roles a través de UsuariosRol
+     */
+    public function roles()
+    {
+        return $this->belongsToMany(rol_model::class, 'UsuariosRol', 'ID_Usuario', 'ID_Rol');
+    }
+
+    /**
+     * Relación para obtener el primer rol (rol principal)
+     */
+    public function rolPrincipal()
+    {
+        return $this->roles()->first();
+    }
+
+    /**
+     * Obtener descripción del rol principal
+     */
+    public function getRolPrincipalDescripcionAttribute()
+    {
+        $rol = $this->rolPrincipal();
+        return $rol ? $rol->Descripcion : null;
+    }
+
+    /**
+     * Obtener el nombre completo del usuario desde la tabla personas
+     */
+    public function getNombreCompletoAttribute()
+    {
+        if ($this->empleado && $this->empleado->persona) {
+            $persona = $this->empleado->persona;
+            return trim($persona->Nombre . ' ' . $persona->Paterno . ' ' . $persona->Materno);
+        }
+        return $this->Usuario;
+    }
+
+    /**
+     * Obtener la fotografía del empleado
+     */
+    public function getFotografiaAttribute()
+    {
+        if ($this->empleado && $this->empleado->ID_Fotografia) {
+            // Convertir el VARBINARY a base64 para mostrar en el frontend
+            return 'data:image/jpeg;base64,' . base64_encode($this->empleado->ID_Fotografia);
+        }
+        return null;
     }
 }

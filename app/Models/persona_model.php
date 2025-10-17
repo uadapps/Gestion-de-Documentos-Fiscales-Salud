@@ -10,6 +10,10 @@ class persona_model extends Model
 
     protected $primaryKey = 'Id_Persona';
 
+    protected $keyType = 'string';
+
+    public $incrementing = false;
+
     public $timestamps = false;
 
     protected $fillable = [
@@ -19,7 +23,7 @@ class persona_model extends Model
     ];
 
     protected $casts = [
-        'Id_Persona' => 'integer',
+        'Id_Persona' => 'string',
     ];
 
     /**

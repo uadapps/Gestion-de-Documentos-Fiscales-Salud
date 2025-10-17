@@ -1,16 +1,37 @@
 <?php
 
+use App\Http\Controllers\AccessController;
+use App\Http\Controllers\UserController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 Route::get('/', function () {
-    return Inertia::render('welcome');
+    if (Auth::check()) {
+        // Si está autenticado (ya pasó la validación de roles), ir al dashboard
+        return redirect()->route('dashboard');
+    }
+
+    // Si no está autenticado, mostrar login
+    return Inertia::render('auth/login');
 })->name('home');
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::get('access-denied', [AccessController::class, 'denied'])->name('access.denied');
+
+Route::middleware(['auth', 'verified', 'authorized.role'])->group(function () {
     Route::get('dashboard', function () {
         return Inertia::render('dashboard');
     })->name('dashboard');
+
+    // Rutas de usuario
+    Route::prefix('api/user')->name('api.user.')->group(function () {
+        Route::get('profile', [UserController::class, 'getProfile'])->name('profile');
+        Route::get('photo', [UserController::class, 'getProfilePhoto'])->name('photo');
+        Route::get('debug', [UserController::class, 'debugUserData'])->name('debug');
+        Route::get('debug-simple', [UserController::class, 'debugSimple'])->name('debug-simple');
+    });
 
     // Rutas de documentos
     Route::prefix('documentos')->name('documentos.')->group(function () {

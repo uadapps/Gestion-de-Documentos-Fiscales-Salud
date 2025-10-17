@@ -1,6 +1,11 @@
+import { type SharedData } from '@/types';
+import { usePage } from '@inertiajs/react';
 import AppLogoIcon from './app-logo-icon';
 
 export default function AppLogo() {
+    const { auth } = usePage<SharedData>().props;
+    const campusName = auth?.user?.campus || 'Campus UAD';
+
     return (
         <>
             <div className="flex aspect-square size-8 items-center justify-center rounded-md">
@@ -15,7 +20,7 @@ export default function AppLogo() {
                     Documentos Fiscales
                 </span>
                 <span className="truncate text-xs text-muted-foreground">
-                    Campus UAD
+                  Campus  {campusName}
                 </span>
             </div>
         </>

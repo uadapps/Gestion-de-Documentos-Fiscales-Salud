@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
+use Exception;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
@@ -28,9 +30,14 @@ class FortifyServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Log::info('=== FortifyServiceProvider BOOT INICIADO ===');
+
         $this->configureViews();
         $this->configureRateLimiting();
         $this->configureAuthentication();
+        $this->configureResponses();
+
+        Log::info('=== FortifyServiceProvider BOOT COMPLETADO ===');
     }
 
     /**
@@ -38,25 +45,107 @@ class FortifyServiceProvider extends ServiceProvider
      */
     private function configureAuthentication(): void
     {
+        Log::info('=== REGISTRANDO AUTENTICACION PERSONALIZADA ===');
+
         // Configurar el campo de username personalizado
         Fortify::authenticateUsing(function (Request $request) {
+            Log::info('=== INICIO AUTENTICACION PERSONALIZADA ===', [
+                'usuario_solicitado' => $request->Usuario,
+                'timestamp' => now(),
+            ]);
+
+            // Buscar usuario base
             $user = \App\Models\usuario_model::where('Usuario', $request->Usuario)
                 ->where('Activo', true)
                 ->first();
 
-            if ($user) {
-                // Debug temporal - registrar información del hash
-                Log::info('Debug Password Hash:', [
+            if (!$user) {
+                Log::info('Usuario no encontrado o inactivo:', [
+                    'usuario_solicitado' => $request->Usuario,
+                ]);
+                return null;
+            }
+
+            Log::info('Usuario encontrado, validando contraseña:', [
+                'usuario' => $user->Usuario,
+                'activo' => $user->Activo,
+                'tiene_frase_secreta' => !empty($user->FraseSecreta),
+            ]);
+
+            // Verificar que tenga frase secreta
+            if (empty($user->FraseSecreta)) {
+                Log::info('Usuario sin frase secreta:', [
                     'usuario' => $user->Usuario,
-                    'password_length' => strlen($user->passencrip),
-                    'password_type' => gettype($user->passencrip),
-                    'password_hex' => is_string($user->passencrip) ? bin2hex($user->passencrip) : 'not_string',
-                    'password_raw' => substr($user->passencrip, 0, 50) . '...', // Primeros 50 caracteres
+                ]);
+                return null;
+            }
+
+            // Obtener contraseña desencriptada usando Eloquent
+            $userWithDecryptedPassword = \App\Models\usuario_model::select([
+                '*',
+                DB::raw("CAST(DECRYPTBYPASSPHRASE(FraseSecreta, passencrip, 1, Usuario) AS NVARCHAR) as password_decrypted")
+            ])
+            ->where('Usuario', $request->Usuario)
+            ->where('Activo', true)
+            ->first();
+
+            if (!$userWithDecryptedPassword) {
+                Log::info('Error al desencriptar contraseña:', [
+                    'usuario' => $user->Usuario,
+                ]);
+                return null;
+            }
+
+            Log::info('Contraseña desencriptada, comparando:', [
+                'usuario' => $userWithDecryptedPassword->Usuario,
+                'tiene_password_decrypted' => !empty($userWithDecryptedPassword->password_decrypted),
+                'password_decrypted_length' => strlen($userWithDecryptedPassword->password_decrypted ?? ''),
+                'password_ingresada_length' => strlen($request->password),
+            ]);
+
+            // Comparar contraseñas
+            $decryptedPassword = trim($userWithDecryptedPassword->password_decrypted ?? '');
+            $inputPassword = trim($request->password);
+
+            if (!empty($decryptedPassword) && $decryptedPassword === $inputPassword) {
+                Log::info('Contraseña correcta, verificando roles:', [
+                    'usuario' => $userWithDecryptedPassword->Usuario,
                 ]);
 
-                if ($this->verifyPassword($request->password, $user->passencrip)) {
-                    return $user;
+                // VALIDAR ROLES ANTES DE AUTENTICAR
+                $user->load('roles');
+                $rolesAutorizados = config('roles.authorized_roles');
+                $rolesUsuario = $user->roles->pluck('ID_Rol')->toArray();
+                $tieneRolAutorizado = $user->roles->pluck('ID_Rol')->intersect($rolesAutorizados)->isNotEmpty();
+
+                Log::info('Verificación de roles:', [
+                    'usuario' => $user->Usuario,
+                    'roles_usuario' => $rolesUsuario,
+                    'roles_autorizados' => $rolesAutorizados,
+                    'tiene_acceso' => $tieneRolAutorizado,
+                ]);
+
+                if (!$tieneRolAutorizado) {
+                    Log::info('Usuario sin roles autorizados - negando acceso:', [
+                        'usuario' => $user->Usuario,
+                        'roles' => $rolesUsuario,
+                    ]);
+                    // Retornar null para que falle como credenciales incorrectas
+                    return null;
                 }
+
+                Log::info('Usuario autenticado exitosamente:', [
+                    'usuario' => $user->Usuario,
+                    'roles' => $rolesUsuario,
+                ]);
+
+                // Retornar el usuario original (sin el campo password_decrypted)
+                return $user;
+            } else {
+                Log::info('Contraseña incorrecta:', [
+                    'usuario' => $userWithDecryptedPassword->Usuario,
+                    'passwords_match' => $decryptedPassword === $inputPassword,
+                ]);
             }
 
             return null;
@@ -73,111 +162,27 @@ class FortifyServiceProvider extends ServiceProvider
             return false;
         }
 
-        // Log inicial
         Log::info('Password verification start:', [
             'password_input' => $password,
-            'hash_raw' => $hashedPassword,
-            'hash_type' => gettype($hashedPassword),
-            'hash_length' => strlen($hashedPassword)
+            'hash_length' => strlen($hashedPassword),
+            'is_utf8' => mb_check_encoding($hashedPassword, 'UTF-8')
         ]);
 
-        // Convertir binary a string si es necesario
-        if (is_resource($hashedPassword)) {
-            $hashedPassword = stream_get_contents($hashedPassword);
-        }
-
-        // Manejar formato hexadecimal de SQL Server
-        $hexHash = '';
-
-        if (str_starts_with($hashedPassword, '0x') || str_starts_with($hashedPassword, '0X')) {
-            // Ya está en formato hex con prefijo, remover el prefijo
-            $hexHash = substr($hashedPassword, 2);
-        } elseif (is_string($hashedPassword) && ctype_xdigit($hashedPassword)) {
-            // Es hex sin prefijo
-            $hexHash = $hashedPassword;
+        // Convertir binary a hex si es necesario
+        if (!mb_check_encoding($hashedPassword, 'UTF-8')) {
+            $hexHash = strtoupper(bin2hex($hashedPassword));
         } else {
-            // Es binary, convertir a hex
-            $hexHash = bin2hex($hashedPassword);
+            $hexHash = strtoupper($hashedPassword);
         }
 
-        $hexHash = strtoupper($hexHash);
-
-        Log::info('Password verification processing:', [
-            'hex_hash' => $hexHash,
-            'hex_length' => strlen($hexHash),
+        Log::info('Hash converted to hex:', [
+            'hex_hash_start' => substr($hexHash, 0, 16),
+            'hex_length' => strlen($hexHash)
         ]);
 
-        // Verificar que coincida con tu formato específico
-        $expectedHash = '02000000DE38931E00116F755C440F7C2BF65D190F311D1389647B54DF45C788CFE91A4BAFF6E536822065A0DBBB2D08CBA5EFFB7883F0BAE966BCE85677D1D8BDD33595AB38026531BAD1378C9F18184FB4DF32';
-
-        if ($hexHash === $expectedHash) {
-            Log::info('Password verification: EXACT MATCH with expected hash');
-            return true;
-        }
-
-        // Analizar estructura PBKDF2 de SQL Server
-        if (strlen($hexHash) >= 16) {
-            $version = substr($hexHash, 0, 8); // 02000000
-            $saltAndHash = substr($hexHash, 8);
-
-            Log::info('Hash structure analysis:', [
-                'version' => $version,
-                'salt_and_hash' => $saltAndHash,
-                'salt_and_hash_length' => strlen($saltAndHash)
-            ]);
-
-            // Para SQL Server PBKDF2:
-            // 4 bytes: version (02000000)
-            // 4 bytes: iteration count (little-endian)
-            // 16 bytes: salt
-            // resto: hash derivado
-
-            if (strlen($saltAndHash) >= 40) {
-                $iterationHex = substr($saltAndHash, 0, 8); // DE38931E
-                $saltHex = substr($saltAndHash, 8, 32); // 16 bytes
-                $storedHashHex = substr($saltAndHash, 40); // resto
-
-                // Convertir iteration count de little-endian
-                $iterationBytes = array_reverse(str_split($iterationHex, 2));
-                $iterations = hexdec(implode('', $iterationBytes));
-
-                Log::info('PBKDF2 components extracted:', [
-                    'iteration_hex' => $iterationHex,
-                    'iterations' => $iterations,
-                    'salt_hex' => $saltHex,
-                    'stored_hash_hex' => $storedHashHex,
-                    'stored_hash_length' => strlen($storedHashHex)
-                ]);
-
-                // Si las iteraciones son razonables, intentar PBKDF2
-                if ($iterations > 0 && $iterations <= 100000) {
-                    $saltBinary = hex2bin($saltHex);
-
-                    // Probar diferentes algoritmos y longitudes de hash
-                    $configs = [
-                        ['algo' => 'sha1', 'length' => 20],
-                        ['algo' => 'sha256', 'length' => 32],
-                        ['algo' => 'sha512', 'length' => 64],
-                    ];
-
-                    foreach ($configs as $config) {
-                        if (function_exists('hash_pbkdf2')) {
-                            $computedHash = hash_pbkdf2($config['algo'], $password, $saltBinary, $iterations, $config['length'], true);
-                            $computedHashHex = strtoupper(bin2hex($computedHash));
-
-                            Log::info("Testing PBKDF2 {$config['algo']}:", [
-                                'computed_hash' => $computedHashHex,
-                                'matches' => str_starts_with($storedHashHex, $computedHashHex)
-                            ]);
-
-                            if (str_starts_with($storedHashHex, $computedHashHex) || $storedHashHex === $computedHashHex) {
-                                Log::info("Password verified with PBKDF2 {$config['algo']}, iterations: $iterations");
-                                return true;
-                            }
-                        }
-                    }
-                }
-            }
+        // Verificar si es hash de SQL Server (empieza con 02000000)
+        if (str_starts_with($hexHash, '02000000') && strlen($hexHash) >= 48) {
+            return $this->verifySqlServerPassword($password, $hexHash);
         }
 
         // Si es un hash de Laravel/Bcrypt
@@ -185,8 +190,85 @@ class FortifyServiceProvider extends ServiceProvider
             return Hash::check($password, $hashedPassword);
         }
 
-        Log::info("Password verification failed with all methods");
+        // Verificación MD5 simple (legacy)
+        if (strlen($hexHash) === 32 && ctype_xdigit($hexHash)) {
+            $md5Hash = strtoupper(md5($password));
+            Log::info('Trying MD5 verification:', ['computed' => $md5Hash]);
+            return $hexHash === $md5Hash;
+        }
+
+        Log::info('Password verification failed: unknown hash format');
         return false;
+    }
+
+    /**
+     * Verificar contraseña contra hash PBKDF2 de SQL Server
+     */
+    private function verifySqlServerPassword($password, $hexHash)
+    {
+        Log::info('Verifying SQL Server PBKDF2 hash');
+
+        try {
+            // Estructura del hash SQL Server:
+            // 4 bytes: version (02000000)
+            // 4 bytes: iteration count (little-endian)
+            // 16 bytes: salt
+            // resto: hash derivado
+
+            $version = substr($hexHash, 0, 8); // 02000000
+            $iterationHex = substr($hexHash, 8, 8);
+            $saltHex = substr($hexHash, 16, 32); // 16 bytes = 32 hex chars
+            $storedHashHex = substr($hexHash, 48);
+
+            // Convertir iteration count de little-endian
+            $iterationBytes = array_reverse(str_split($iterationHex, 2));
+            $iterations = hexdec(implode('', $iterationBytes));
+
+            Log::info('PBKDF2 components:', [
+                'version' => $version,
+                'iterations' => $iterations,
+                'salt_length' => strlen($saltHex),
+                'hash_length' => strlen($storedHashHex)
+            ]);
+
+            // Validar que las iteraciones sean razonables
+            if ($iterations <= 0 || $iterations > 100000) {
+                Log::info('Invalid iteration count: ' . $iterations);
+                return false;
+            }
+
+            $saltBinary = hex2bin($saltHex);
+            $storedHashBinary = hex2bin($storedHashHex);
+
+            // Probar diferentes algoritmos de hash
+            $algorithms = ['sha1', 'sha256', 'sha512'];
+
+            foreach ($algorithms as $algo) {
+                // Calcular hash PBKDF2 con el algoritmo actual
+                $computedHash = hash_pbkdf2($algo, $password, $saltBinary, $iterations, strlen($storedHashBinary), true);
+
+                Log::info("Testing PBKDF2 $algo:", [
+                    'computed_length' => strlen($computedHash),
+                    'stored_length' => strlen($storedHashBinary),
+                    'matches' => hash_equals($storedHashBinary, $computedHash)
+                ]);
+
+                if (hash_equals($storedHashBinary, $computedHash)) {
+                    Log::info("Password verified successfully with PBKDF2 $algo");
+                    return true;
+                }
+            }
+
+            Log::info('Password verification failed with all PBKDF2 algorithms');
+            return false;
+
+        } catch (Exception $e) {
+            Log::error('Error in SQL Server password verification:', [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine()
+            ]);
+            return false;
+        }
     }    /**
      * Configure Fortify views.
      */
@@ -202,7 +284,7 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::confirmPasswordView(fn () => Inertia::render('auth/confirm-password'));
     }
 
-    /**
+        /**
      * Configure rate limiting.
      */
     private function configureRateLimiting(): void
@@ -216,5 +298,14 @@ class FortifyServiceProvider extends ServiceProvider
 
             return Limit::perMinute(5)->by($throttleKey);
         });
+    }
+
+    /**
+     * Configure custom responses.
+     */
+    private function configureResponses(): void
+    {
+        // Configurar el idioma para las respuestas de Fortify
+        app()->setLocale('es');
     }
 }

@@ -35,6 +35,19 @@ export interface User {
     name: string;
     email: string;
     avatar?: string;
+    nombre_completo?: string;
+    tiene_fotografia?: boolean;
+    rol_descripcion?: string;
+    campus?: string;
+    empleado?: {
+        id: number;
+        area: string;
+        persona?: {
+            nombre: string;
+            paterno: string;
+            materno: string;
+        };
+    };
     email_verified_at: string | null;
     two_factor_enabled?: boolean;
     created_at: string;

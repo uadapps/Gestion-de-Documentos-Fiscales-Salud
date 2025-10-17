@@ -56,7 +56,7 @@ export function UserMenuContent({ user }: UserMenuContentProps) {
                     data-test="logout-button"
                 >
                     <LogOut className="mr-2" />
-                    Log out
+                    Cerrar Sesión
                 </Link>
             </DropdownMenuItem>
         </>
