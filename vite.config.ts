@@ -3,6 +3,36 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
 import { defineConfig } from 'vite';
+import { existsSync } from 'fs';
+
+// Función para detectar la ruta correcta de PHP
+function getPhpCommand(): string {
+    if (process.platform !== 'win32') {
+        return 'php';
+    }
+
+    // Si hay una variable de entorno PHP_PATH, usarla
+    if (process.env.PHP_PATH && existsSync(process.env.PHP_PATH)) {
+        return process.env.PHP_PATH;
+    }
+
+    // Rutas comunes de Laragon
+    const laravelPaths = [
+        'C:\\laragon\\bin\\php\\php-8.3.26-Win32-vs16-x64\\php.exe',
+        'C:\\laragon\\bin\\php\\php-8.3.21-Win32-vs16-x64\\php.exe',
+        'C:\\laragon\\bin\\php\\php-8.2\\php.exe',
+        'C:\\laragon\\bin\\php\\php-8.1\\php.exe',
+    ];
+
+    for (const path of laravelPaths) {
+        if (existsSync(path)) {
+            return path;
+        }
+    }
+
+    // Fallback a php en PATH
+    return 'php';
+}
 
 export default defineConfig({
     plugins: [
@@ -15,13 +45,20 @@ export default defineConfig({
         tailwindcss(),
         wayfinder({
             formVariants: true,
-            // En Windows Laragon el ejecutable php no siempre está en PATH cuando pnpm
-            // arranca vite; pasar la ruta absoluta evita que el plugin falle al invocar
-            // `php artisan wayfinder:generate`.
-            command: "C:\\laragon\\bin\\php\\php-8.3.26-Win32-vs16-x64\\php.exe artisan wayfinder:generate",
+            // Detectar automáticamente la ruta de PHP para compatibilidad con diferentes entornos
+            command: `${getPhpCommand()} artisan wayfinder:generate`,
         }),
     ],
     esbuild: {
         jsx: 'automatic',
     },
+    server: {
+        // Configuración del servidor de desarrollo
+        host: '127.0.0.1',
+        port: 5173,
+        hmr: {
+            host: '127.0.0.1',
+            port: 5173
+        }
+    }
 });

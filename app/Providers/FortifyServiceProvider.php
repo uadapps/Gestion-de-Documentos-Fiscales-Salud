@@ -40,7 +40,7 @@ class FortifyServiceProvider extends ServiceProvider
     {
         // Configurar el campo de username personalizado
         Fortify::authenticateUsing(function (Request $request) {
-            $user = \App\Models\User::where('Usuario', $request->Usuario)
+            $user = \App\Models\usuario_model::where('Usuario', $request->Usuario)
                 ->where('Activo', true)
                 ->first();
 
