@@ -16,12 +16,18 @@ function getPhpCommand(): string {
         return process.env.PHP_PATH;
     }
 
-    // Rutas comunes de Laragon
+    // Rutas comunes de Laragon y otros entornos
     const laravelPaths = [
         'C:\\laragon\\bin\\php\\php-8.3.26-Win32-vs16-x64\\php.exe',
         'C:\\laragon\\bin\\php\\php-8.3.21-Win32-vs16-x64\\php.exe',
+        'C:\\laragon\\bin\\php\\php-8.3.12-Win32-vs16-x64\\php.exe',
+        'C:\\laragon\\bin\\php\\php-8.3.0-Win32-vs16-x64\\php.exe',
+        'C:\\laragon\\bin\\php\\php-8.2.12-Win32-vs16-x64\\php.exe',
         'C:\\laragon\\bin\\php\\php-8.2\\php.exe',
         'C:\\laragon\\bin\\php\\php-8.1\\php.exe',
+        'C:\\xampp\\php\\php.exe',
+        'C:\\wamp64\\bin\\php\\php8.3.0\\php.exe',
+        'C:\\wamp64\\bin\\php\\php8.2.0\\php.exe',
     ];
 
     for (const path of laravelPaths) {
