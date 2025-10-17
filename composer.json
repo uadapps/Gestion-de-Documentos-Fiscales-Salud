@@ -54,7 +54,7 @@
         ],
         "dev:laragon": [
             "Composer\\Config::disableProcessTimeout",
-            "pnpx concurrently -c \"#93c5fd,#c4b5fd,#fdba74\" \"php artisan serve --port=8001\" \"php artisan queue:listen --tries=1\" \"pnpm run dev\" --names='server,queue,vite'"
+            "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& { . '%CD%\\scripts\\use-laragon-php.ps1'; pnpx concurrently -c '#93c5fd,#c4b5fd,#fdba74' 'C:\\laragon\\bin\\php\\php-8.3.26-Win32-vs16-x64\\php.exe artisan serve --port=8001' 'C:\\laragon\\bin\\php\\php-8.3.26-Win32-vs16-x64\\php.exe artisan queue:work --tries=1' 'pnpm run dev' --names='server,queue,vite' }\""
         ],
         "dev:check": [
             "php --version",

@@ -69,6 +69,29 @@ php artisan migrate
 pnpm run build
 ```
 
+## Uso de PHP por proyecto (Laragon)
+
+Si quieres que este proyecto use la versión de PHP instalada en Laragon solo para este repositorio (sin cambiar la configuración global del sistema), hay scripts incluidos que anteponen temporalmente la carpeta de PHP de Laragon a la variable PATH en la sesión actual.
+
+Archivos añadidos:
+
+- `scripts/use-laragon-php.ps1` — Script PowerShell. Ejecuta en PowerShell desde la raíz del repo:
+
+	powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\use-laragon-php.ps1
+
+- `scripts/use-laragon-php.bat` — Script para cmd. Ejecuta en CMD desde la raíz del repo:
+
+	.\\scripts\\use-laragon-php.bat
+
+- `.vscode/tasks.json` — Tarea para ejecutar el script PowerShell desde VS Code (Terminal integrado).
+
+Notas:
+
+- Estos scripts solo modifican PATH en la sesión actual (temporal). Cierra la terminal para volver a la configuración anterior.
+- Si tu instalación de Laragon está en otra ruta, edita el parámetro o la variable `PHPDIR` en los scripts para apuntar a tu versión.
+- Si prefieres un cambio permanente para tu usuario, edita la variable PATH del sistema (no recomendado si sólo quieres afectar este proyecto).
+
+
 ## 🏃‍♂️ Desarrollo
 
 Para ejecutar el proyecto en modo desarrollo:
