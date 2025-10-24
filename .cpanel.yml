@@ -39,8 +39,7 @@ deployment:
     - /bin/cp -R database $APPPATH/
     - /bin/cp -R bootstrap $APPPATH/
     - /bin/cp -R storage $APPPATH/
-    - /bin/cp -R vendor $APPPATH/
-    - /bin/cp -R lang $APPPATH/
+    - /bin/cp -R lang $APPPATH/ 2>/dev/null || true
     - /bin/cp composer.json $APPPATH/
     - /bin/cp composer.lock $APPPATH/
     - /bin/cp artisan $APPPATH/
@@ -51,8 +50,8 @@ deployment:
     - /bin/cp tsconfig.json $APPPATH/
     - /bin/cp eslint.config.js $APPPATH/
     - /bin/cp components.json $APPPATH/
-    - /bin/cp phpunit.xml $APPPATH/
-    - /bin/cp README.md $APPPATH/
+    - /bin/cp phpunit.xml $APPPATH/ 2>/dev/null || true
+    - /bin/cp README.md $APPPATH/ 2>/dev/null || true
 
     # Copiar archivos públicos EXCEPTO build (se generará en servidor)
     - /bin/cp public/index.php $PUBLICPATH/
@@ -71,8 +70,8 @@ deployment:
     # Copiar assets compilados al directorio público
     - /bin/cp -R $APPPATH/public/build $PUBLICPATH/ 2>/dev/null || true
 
-    # Copiar assets compilados también a la aplicación Laravel
-    - /bin/cp -R public/build $APPPATH/public/ 2>/dev/null || true
+    # Descargar Composer si no existe
+    - cd $APPPATH && curl -sS https://getcomposer.org/installer | /usr/local/bin/ea-php83 -- --install-dir=. --filename=composer.phar
 
     # Instalar dependencias de Composer
     - cd $APPPATH && /usr/local/bin/ea-php83 composer.phar install --optimize-autoloader --no-dev --no-interaction
