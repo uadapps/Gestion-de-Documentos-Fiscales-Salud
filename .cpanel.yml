@@ -6,6 +6,7 @@ deployment:
     - export PUBLICPATH=/home/tu_usuario_cpanel/public_html
     - mkdir -p $APPPATH
 
+#prueba
     # Limpiar archivos innecesarios del despliegue anterior
     - rm -f $APPPATH/debug_documents.php 2>/dev/null || true
     - rm -f $APPPATH/debug_php.php 2>/dev/null || true
