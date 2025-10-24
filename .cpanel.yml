@@ -5,6 +5,7 @@ deployment:
     - export APPPATH=/home/suguad/documentos_fiscales_app
     - export PUBLICPATH=/home/suguad/sug.uad.mx
     - mkdir -p $APPPATH
+    - mkdir -p $PUBLICPATH
 
     # Limpiar archivos innecesarios del despliegue anterior
     - rm -f $APPPATH/debug_documents.php 2>/dev/null || true
