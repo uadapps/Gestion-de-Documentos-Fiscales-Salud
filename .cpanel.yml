@@ -60,14 +60,14 @@ deployment:
     - /bin/cp public/favicon.ico $PUBLICPATH/ 2>/dev/null || true
     - /bin/cp public/favicon.svg $PUBLICPATH/ 2>/dev/null || true
     - /bin/cp -R public/img $PUBLICPATH/ 2>/dev/null || true
-    
+
     # Copiar assets compilados si existen en el repo
     - /bin/cp -R public/build $PUBLICPATH/ 2>/dev/null || echo "No pre-compiled assets found"
-    
+
     # Actualizar index.php para apuntar a la aplicación Laravel correcta
     - sed -i 's|__DIR__.*/bootstrap/app.php|/home/suguad/documentos_fiscales_app/bootstrap/app.php|g' $PUBLICPATH/index.php
     - sed -i 's|__DIR__.*/vendor/autoload.php|/home/suguad/documentos_fiscales_app/vendor/autoload.php|g' $PUBLICPATH/index.php
-    
+
     # Crear index.php personalizado si el anterior no funciona
     - echo '<?php' > $PUBLICPATH/index_backup.php
     - echo 'require_once "/home/suguad/documentos_fiscales_app/vendor/autoload.php";' >> $PUBLICPATH/index_backup.php
@@ -122,7 +122,7 @@ deployment:
     - chmod -R 755 $APPPATH/storage/framework/sessions
     - chmod -R 755 $APPPATH/storage/framework/views
     - chmod -R 755 $APPPATH/storage/logs
-    
+
     # Verificaciones finales y debug
     - echo "=== VERIFICACIÓN DEL DEPLOY ==="
     - echo "Archivos en public_html:"
