@@ -1,9 +1,9 @@
 ---
 deployment:
   tasks:
-    # Definir rutas para el proyecto de documentos fiscales
-    - export APPPATH=/home/tu_usuario_cpanel/documentos_fiscales_app
-    - export PUBLICPATH=/home/tu_usuario_cpanel/public_html
+    # Definir rutas para suguad - sug.uad.mx
+    - export APPPATH=/home/suguad/documentos_fiscales_app
+    - export PUBLICPATH=/home/suguad/public_html
     - mkdir -p $APPPATH
 
 #prueba

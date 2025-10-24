@@ -6,9 +6,9 @@
 echo "🚀 POST-DEPLOY DOCUMENTOS FISCALES"
 echo "=================================="
 
-# Definir rutas (ajustar según tu cPanel)
-APPPATH="/home/tu_usuario_cpanel/documentos_fiscales_app"
-PUBLICPATH="/home/tu_usuario_cpanel/public_html"
+# Definir rutas para suguad - sug.uad.mx
+APPPATH="/home/suguad/documentos_fiscales_app"
+PUBLICPATH="/home/suguad/public_html"
 
 # Ir al directorio de la aplicación
 cd $APPPATH
