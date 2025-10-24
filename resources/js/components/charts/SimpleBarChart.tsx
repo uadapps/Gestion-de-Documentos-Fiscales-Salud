@@ -1,0 +1,53 @@
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
+interface SimpleBarChartProps {
+    data: Array<{ name: string; value: number }>;
+    title?: string;
+    color?: string;
+    className?: string;
+}
+
+export default function SimpleBarChart({
+    data,
+    title,
+    color = "#3b82f6",
+    className = ""
+}: SimpleBarChartProps) {
+    const renderTooltip = ({ active, payload, label }: any) => {
+        if (active && payload && payload.length) {
+            return (
+                <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                    <p className="font-medium">{label}</p>
+                    <p className="text-sm text-gray-600">
+                        {payload[0].value}
+                    </p>
+                </div>
+            );
+        }
+        return null;
+    };
+
+    return (
+        <div className={`w-full ${className}`}>
+            {title && (
+                <h3 className="text-lg font-semibold mb-4">{title}</h3>
+            )}
+            <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                    <XAxis
+                        dataKey="name"
+                        className="text-xs"
+                        interval={0}
+                        angle={-45}
+                        textAnchor="end"
+                        height={60}
+                    />
+                    <YAxis className="text-xs" />
+                    <Tooltip content={renderTooltip} />
+                    <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]} />
+                </BarChart>
+            </ResponsiveContainer>
+        </div>
+    );
+}
