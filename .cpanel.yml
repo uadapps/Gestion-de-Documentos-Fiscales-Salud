@@ -77,7 +77,7 @@ deployment:
     - echo '    $request = Illuminate\\Http\\Request::capture()' >> $PUBLICPATH/index_backup.php
     - echo ');' >> $PUBLICPATH/index_backup.php
     - echo '$response->send();' >> $PUBLICPATH/index_backup.php
-    - echo '$kernel->terminate($request, $response);' >> $PUBLICPATH/index_backup.php    # Método alternativo: Skip Node.js build en servidor si no está disponible
+    - echo '$kernel->terminate($request, $response);' >> $PUBLICPATH/index_backup.php    # Metodo alternativo: Skip Node.js build en servidor si no esta disponible
     # (Los assets deben compilarse localmente y subirse al repo)
     - echo "Verificando si hay assets pre-compilados..."
     - ls -la public/build/ 2>/dev/null || echo "No assets found - compile locally first"
@@ -91,12 +91,12 @@ deployment:
     # Generar autoload optimizado
     - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M composer.phar dump-autoload --optimize
 
-    # Configurar archivo .env básico y APP_KEY
+    # Configurar archivo .env basico y APP_KEY
     - cd $APPPATH && /bin/cp .env.example .env
     - cd $APPPATH && sed -i 's/APP_KEY=/APP_KEY=base64:K8vX9mR2pL5nQ7wT1uY6iO3aS9dF2gH4jK8lM0nP5qR7t/g' .env
     - echo "NOTA: Actualizar .env manualmente con configuracion de produccion"
 
-    # Optimizar Laravel para producción (APP_KEY ya configurada)
+    # Optimizar Laravel para produccion (APP_KEY ya configurada)
     - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan config:cache
     - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan route:cache
     - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan view:cache
@@ -111,7 +111,7 @@ deployment:
     - find $APPPATH/bootstrap/cache -type d -exec chmod 755 {} \;
     - find $APPPATH/bootstrap/cache -type f -exec chmod 644 {} \;
 
-    # Configurar permisos para directorios críticos
+    # Configurar permisos para directorios criticos
     - chmod -R 755 $APPPATH/storage/app/public
     - chmod -R 755 $APPPATH/storage/framework/cache
     - chmod -R 755 $APPPATH/storage/framework/sessions
