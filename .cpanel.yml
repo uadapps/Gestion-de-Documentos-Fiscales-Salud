@@ -69,8 +69,8 @@ deployment:
     - echo "Verificando si hay assets pre-compilados..."
     - ls -la public/build/ 2>/dev/null || echo "No assets found - compile locally first"
 
-    # Descargar Composer usando wget como alternativa a curl
-    - cd $APPPATH && (curl -sS https://getcomposer.org/installer | /usr/local/bin/ea-php83 -d allow_url_fopen=1 -- --install-dir=. --filename=composer.phar || wget -O composer-setup.php https://getcomposer.org/installer && /usr/local/bin/ea-php83 -d allow_url_fopen=1 composer-setup.php --install-dir=. --filename=composer.phar && rm composer-setup.php)
+    # Descargar Composer con configuración PHP corregida
+    - cd $APPPATH && curl -sS https://getcomposer.org/installer | /usr/local/bin/ea-php83 -d allow_url_fopen=1 -- --install-dir=. --filename=composer.phar
 
     # Instalar dependencias de Composer con configuración PHP necesaria
     - cd $APPPATH && /usr/local/bin/ea-php83 -d allow_url_fopen=1 -d memory_limit=512M composer.phar install --optimize-autoloader --no-dev --no-interaction
