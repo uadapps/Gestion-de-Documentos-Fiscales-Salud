@@ -1,0 +1,111 @@
+---
+deployment:
+  tasks:
+    # Definir rutas para el proyecto de documentos fiscales
+    - export APPPATH=/home/tu_usuario_cpanel/documentos_fiscales_app
+    - export PUBLICPATH=/home/tu_usuario_cpanel/public_html
+    - mkdir -p $APPPATH
+
+    # Limpiar archivos innecesarios del despliegue anterior
+    - rm -f $APPPATH/debug_documents.php 2>/dev/null || true
+    - rm -f $APPPATH/debug_php.php 2>/dev/null || true
+    - rm -f $APPPATH/debug_route.php 2>/dev/null || true
+    - rm -f $APPPATH/temp_clean_controller.php 2>/dev/null || true
+    - rm -f $APPPATH/temp_method.php 2>/dev/null || true
+    - rm -f $APPPATH/install_telescope.bat 2>/dev/null || true
+    - rm -f $APPPATH/php-dev.ini 2>/dev/null || true
+    - rm -f $APPPATH/php.ini 2>/dev/null || true
+    - rm -f $APPPATH/.env.production 2>/dev/null || true
+    - rm -f $APPPATH/.env.local.backup 2>/dev/null || true
+    - rm -f $APPPATH/package-lock.json 2>/dev/null || true
+    - rm -f $APPPATH/pnpm-lock.yaml.bak 2>/dev/null || true
+    - rm -f $APPPATH/deploy-cpanel.bat 2>/dev/null || true
+    - rm -rf $APPPATH/scripts 2>/dev/null || true
+
+    # Limpiar archivos públicos innecesarios
+    - rm -f $PUBLICPATH/debug_documents.php 2>/dev/null || true
+    - rm -f $PUBLICPATH/debug_php.php 2>/dev/null || true
+    - rm -f $PUBLICPATH/debug_route.php 2>/dev/null || true
+    - rm -f $PUBLICPATH/temp_clean_controller.php 2>/dev/null || true
+    - rm -f $PUBLICPATH/package-lock.json 2>/dev/null || true
+    - rm -f $PUBLICPATH/deploy-cpanel.bat 2>/dev/null || true
+
+    # Copiar aplicación Laravel al directorio privado
+    - /bin/cp -R app $APPPATH/
+    - /bin/cp -R routes $APPPATH/
+    - /bin/cp -R resources $APPPATH/
+    - /bin/cp -R config $APPPATH/
+    - /bin/cp -R database $APPPATH/
+    - /bin/cp -R bootstrap $APPPATH/
+    - /bin/cp -R storage $APPPATH/
+    - /bin/cp -R vendor $APPPATH/
+    - /bin/cp -R lang $APPPATH/
+    - /bin/cp composer.json $APPPATH/
+    - /bin/cp composer.lock $APPPATH/
+    - /bin/cp artisan $APPPATH/
+    - /bin/cp .env.example $APPPATH/
+    - /bin/cp package.json $APPPATH/
+    - /bin/cp pnpm-lock.yaml $APPPATH/
+    - /bin/cp vite.config.ts $APPPATH/
+    - /bin/cp tsconfig.json $APPPATH/
+    - /bin/cp eslint.config.js $APPPATH/
+    - /bin/cp components.json $APPPATH/
+    - /bin/cp phpunit.xml $APPPATH/
+    - /bin/cp README.md $APPPATH/
+
+    # Copiar archivos públicos EXCEPTO build (se generará en servidor)
+    - /bin/cp public/index.php $PUBLICPATH/
+    - /bin/cp public/.htaccess $PUBLICPATH/
+    - /bin/cp public/robots.txt $PUBLICPATH/
+    - /bin/cp public/favicon.ico $PUBLICPATH/ 2>/dev/null || true
+    - /bin/cp public/favicon.svg $PUBLICPATH/ 2>/dev/null || true
+    - /bin/cp -R public/img $PUBLICPATH/ 2>/dev/null || true
+
+    # Instalar dependencias de Node.js con pnpm
+    - cd $APPPATH && /usr/local/bin/node /usr/local/bin/pnpm install --frozen-lockfile
+
+    # BUILD DE ASSETS EN EL SERVIDOR
+    - cd $APPPATH && /usr/local/bin/node /usr/local/bin/pnpm run build
+
+    # Copiar assets compilados al directorio público
+    - /bin/cp -R $APPPATH/public/build $PUBLICPATH/ 2>/dev/null || true
+
+    # Copiar assets compilados también a la aplicación Laravel
+    - /bin/cp -R public/build $APPPATH/public/ 2>/dev/null || true
+
+    # Instalar dependencias de Composer
+    - cd $APPPATH && /usr/local/bin/ea-php83 composer.phar install --optimize-autoloader --no-dev --no-interaction
+
+    # Generar autoload optimizado
+    - cd $APPPATH && /usr/local/bin/ea-php83 composer.phar dump-autoload --optimize
+
+    # Configurar archivo .env para producción
+    - cd $APPPATH && /bin/cp .env.example .env
+
+    # Generar clave de aplicación
+    - cd $APPPATH && /usr/local/bin/ea-php83 artisan key:generate --force
+
+    # Ejecutar migraciones (comentado por seguridad, ejecutar manualmente)
+    # - cd $APPPATH && /usr/local/bin/ea-php83 artisan migrate --force
+
+    # Optimizar Laravel para producción
+    - cd $APPPATH && /usr/local/bin/ea-php83 artisan config:cache
+    - cd $APPPATH && /usr/local/bin/ea-php83 artisan route:cache
+    - cd $APPPATH && /usr/local/bin/ea-php83 artisan view:cache
+
+    # Crear enlace simbólico para storage
+    - rm -f $PUBLICPATH/storage
+    - ln -s $APPPATH/storage/app/public $PUBLICPATH/storage
+
+    # Configurar permisos para storage y cache
+    - find $APPPATH/storage -type d -exec chmod 755 {} \;
+    - find $APPPATH/storage -type f -exec chmod 644 {} \;
+    - find $APPPATH/bootstrap/cache -type d -exec chmod 755 {} \;
+    - find $APPPATH/bootstrap/cache -type f -exec chmod 644 {} \;
+
+    # Configurar permisos para directorios críticos
+    - chmod -R 755 $APPPATH/storage/app/public
+    - chmod -R 755 $APPPATH/storage/framework/cache
+    - chmod -R 755 $APPPATH/storage/framework/sessions
+    - chmod -R 755 $APPPATH/storage/framework/views
+    - chmod -R 755 $APPPATH/storage/logs

@@ -1,0 +1,49 @@
+# .htaccess para cPanel - Documentos Fiscales
+# Este archivo va en la raíz del proyecto si no usas despliegue automático
+
+# Redirigir a la carpeta public cuando Laravel está en subdirectorio
+RewriteEngine On
+
+# Manejo de archivos estáticos
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Redirigir todo a public/index.php
+RewriteRule ^(.*)$ public/index.php [L,QSA]
+
+# Configuración para producción
+<IfModule mod_headers.c>
+    # Cache para assets
+    <FilesMatch "\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$">
+        ExpiresActive On
+        ExpiresDefault "access plus 1 year"
+        Header append Cache-Control "public, immutable"
+    </FilesMatch>
+
+    # Seguridad headers
+    Header always set X-Content-Type-Options nosniff
+    Header always set X-Frame-Options DENY
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# Ocultar archivos sensibles
+<Files ".env">
+    Order allow,deny
+    Deny from all
+</Files>
+
+<Files "composer.json">
+    Order allow,deny
+    Deny from all
+</Files>
+
+<Files "composer.lock">
+    Order allow,deny
+    Deny from all
+</Files>
+
+<Files "package.json">
+    Order allow,deny
+    Deny from all
+</Files>

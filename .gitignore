@@ -1,7 +1,8 @@
 /.phpunit.cache
 /bootstrap/ssr
 /node_modules
-/public/build
+# DEPLOY: Descomenta la siguiente línea para incluir build en deploy
+# /public/build
 /public/hot
 /public/storage
 /resources/js/actions
@@ -121,7 +122,7 @@ database/database.sqlite
 /storage/framework/views/*
 /storage/debugbar/*
 
-# Laragon 
+# Laragon
 laragon.ini
 /.laragon
 .laragon
