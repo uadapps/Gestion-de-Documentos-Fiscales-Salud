@@ -226,13 +226,13 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                         {/* Main Title with enhanced visibility over Plasma */}
                                         <div className="mb-12 text-center w-full">
                                             <h1 className="text-5xl font-bold mb-6 leading-tight text-center drop-shadow-lg">
-                                                <span className="animate-slideInLeft block mb-3 text-center text-white">Sistema de Gestión</span>
+                                                <span className="animate-slideInLeft block mb-3 text-center text-white"> Sistema único de gestión</span>
                                                 <span className="block text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-amber-400 to-yellow-300 animate-gradient-shift text-4xl text-center drop-shadow-lg filter-none"
                                                       style={{
                                                           filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.8))',
                                                           WebkitTextStroke: '2px rgba(0,0,0,0.3)'
                                                       }}>
-                                                   de Documentos Fiscales
+                                                  de la UAD
                                                 </span>
                                             </h1>
                                             <div className="w-32 h-1.5 bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-400 mx-auto rounded-full animate-pulse shadow-lg shadow-yellow-400/60"></div>

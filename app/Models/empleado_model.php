@@ -49,4 +49,27 @@ class empleado_model extends Model
     {
         return $this->hasOne(usuario_model::class, 'ID_Empleado', 'ID_Empleado');
     }
+
+    /**
+     * Relación: un empleado puede tener múltiples campus asignados como contador/director
+     */
+    public function campusAsignados()
+    {
+        return $this->hasMany(CampusContador::class, 'ID_Empleado', 'ID_Empleado');
+    }
+
+    /**
+     * Relación: obtener los campus directamente a través de Campus_Contadores
+     */
+    public function campusComoDirector()
+    {
+        return $this->belongsToMany(
+            campus_model::class,
+            'Campus_Contadores',
+            'ID_Empleado',
+            'ID_Campus',
+            'ID_Empleado',
+            'ID_Campus'
+        );
+    }
 }

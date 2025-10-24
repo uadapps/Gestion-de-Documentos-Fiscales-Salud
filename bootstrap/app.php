@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'authorized.role' => \App\Http\Middleware\CheckAuthorizedRole::class,
+            'role' => \App\Http\Middleware\CheckSpecificRole::class,
         ]);
 
         $middleware->web(append: [

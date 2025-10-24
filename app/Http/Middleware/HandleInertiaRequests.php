@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -65,6 +66,15 @@ class HandleInertiaRequests extends Middleware
                 'two_factor_enabled' => $user->two_factor_secret !== null,
                 'created_at' => $user->created_at,
                 'updated_at' => $user->updated_at,
+                // Agregar roles para el control de acceso
+                'roles' => $user->roles->map(function ($role) {
+                    return [
+                        'id' => $role->ID_Rol,
+                        'rol' => $role->ID_Rol, // Para compatibilidad
+                        'nombre' => $role->ID_Rol,
+                        'descripcion' => $role->Descripcion,
+                    ];
+                })->toArray(),
                 // Datos adicionales del empleado
                 'empleado' => $user->empleado ? [
                     'id' => $user->empleado->ID_Empleado,
