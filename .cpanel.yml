@@ -3,7 +3,7 @@ deployment:
   tasks:
     # Definir rutas para suguad - sug.uad.mx
     - export APPPATH=/home/suguad/documentos_fiscales_app
-    - export PUBLICPATH=/home/suguad/public_html
+    - export PUBLICPATH=/home/suguad/sug.uad.mx
     - mkdir -p $APPPATH
 
     # Limpiar archivos innecesarios del despliegue anterior
