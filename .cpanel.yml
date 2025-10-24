@@ -53,22 +53,21 @@ deployment:
     - /bin/cp phpunit.xml $APPPATH/ 2>/dev/null || true
     - /bin/cp README.md $APPPATH/ 2>/dev/null || true
 
-    # Copiar archivos públicos EXCEPTO build (se generará en servidor)
+    # Copiar archivos públicos EXCEPTO build inicialmente
     - /bin/cp public/index.php $PUBLICPATH/
     - /bin/cp public/.htaccess $PUBLICPATH/
     - /bin/cp public/robots.txt $PUBLICPATH/
     - /bin/cp public/favicon.ico $PUBLICPATH/ 2>/dev/null || true
     - /bin/cp public/favicon.svg $PUBLICPATH/ 2>/dev/null || true
     - /bin/cp -R public/img $PUBLICPATH/ 2>/dev/null || true
+    
+    # Copiar assets compilados si existen en el repo
+    - /bin/cp -R public/build $PUBLICPATH/ 2>/dev/null || echo "No pre-compiled assets found"
 
-    # Instalar dependencias de Node.js con pnpm
-    - cd $APPPATH && /usr/local/bin/node /usr/local/bin/pnpm install --frozen-lockfile
-
-    # BUILD DE ASSETS EN EL SERVIDOR
-    - cd $APPPATH && /usr/local/bin/node /usr/local/bin/pnpm run build
-
-    # Copiar assets compilados al directorio público
-    - /bin/cp -R $APPPATH/public/build $PUBLICPATH/ 2>/dev/null || true
+    # Método alternativo: Skip Node.js build en servidor si no está disponible
+    # (Los assets deben compilarse localmente y subirse al repo)
+    - echo "Verificando si hay assets pre-compilados..."
+    - ls -la public/build/ 2>/dev/null || echo "No assets found - compile locally first"
 
     # Descargar Composer si no existe
     - cd $APPPATH && curl -sS https://getcomposer.org/installer | /usr/local/bin/ea-php83 -- --install-dir=. --filename=composer.phar
