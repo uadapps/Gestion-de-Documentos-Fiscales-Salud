@@ -91,17 +91,12 @@ deployment:
     # Generar autoload optimizado
     - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M composer.phar dump-autoload --optimize
 
-    # Configurar archivo .env básico (actualizar manualmente después)
+    # Configurar archivo .env básico y APP_KEY
     - cd $APPPATH && /bin/cp .env.example .env
-    - echo "NOTA: Actualizar .env manualmente con configuración de producción"
+    - cd $APPPATH && sed -i 's/APP_KEY=/APP_KEY=base64:K8vX9mR2pL5nQ7wT1uY6iO3aS9dF2gH4jK8lM0nP5qR7t/g' .env
+    - echo "NOTA: Actualizar .env manualmente con configuracion de produccion"
 
-    # Generar clave de aplicación
-    - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan key:generate --force
-
-    # Ejecutar migraciones (comentado por seguridad, ejecutar manualmente)
-    # - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan migrate --force
-
-    # Optimizar Laravel para producción
+    # Optimizar Laravel para producción (APP_KEY ya configurada)
     - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan config:cache
     - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan route:cache
     - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan view:cache
@@ -124,7 +119,7 @@ deployment:
     - chmod -R 755 $APPPATH/storage/logs
 
     # Verificaciones finales y debug
-    - echo "=== VERIFICACIÓN DEL DEPLOY ==="
+    - echo "=== VERIFICACION DEL DEPLOY ==="
     - echo "Archivos en public_html:"
     - ls -la $PUBLICPATH/
     - echo "Contenido de index.php:"
