@@ -69,28 +69,28 @@ deployment:
     - echo "Verificando si hay assets pre-compilados..."
     - ls -la public/build/ 2>/dev/null || echo "No assets found - compile locally first"
 
-    # Descargar Composer si no existe
-    - cd $APPPATH && curl -sS https://getcomposer.org/installer | /usr/local/bin/ea-php83 -- --install-dir=. --filename=composer.phar
+    # Descargar Composer usando wget como alternativa a curl
+    - cd $APPPATH && (curl -sS https://getcomposer.org/installer | /usr/local/bin/ea-php83 -d allow_url_fopen=1 -- --install-dir=. --filename=composer.phar || wget -O composer-setup.php https://getcomposer.org/installer && /usr/local/bin/ea-php83 -d allow_url_fopen=1 composer-setup.php --install-dir=. --filename=composer.phar && rm composer-setup.php)
 
-    # Instalar dependencias de Composer
-    - cd $APPPATH && /usr/local/bin/ea-php83 composer.phar install --optimize-autoloader --no-dev --no-interaction
+    # Instalar dependencias de Composer con configuración PHP necesaria
+    - cd $APPPATH && /usr/local/bin/ea-php83 -d allow_url_fopen=1 -d memory_limit=512M composer.phar install --optimize-autoloader --no-dev --no-interaction
 
     # Generar autoload optimizado
-    - cd $APPPATH && /usr/local/bin/ea-php83 composer.phar dump-autoload --optimize
+    - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M composer.phar dump-autoload --optimize
 
     # Configurar archivo .env para producción
     - cd $APPPATH && /bin/cp .env.example .env
 
     # Generar clave de aplicación
-    - cd $APPPATH && /usr/local/bin/ea-php83 artisan key:generate --force
+    - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan key:generate --force
 
     # Ejecutar migraciones (comentado por seguridad, ejecutar manualmente)
-    # - cd $APPPATH && /usr/local/bin/ea-php83 artisan migrate --force
+    # - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan migrate --force
 
     # Optimizar Laravel para producción
-    - cd $APPPATH && /usr/local/bin/ea-php83 artisan config:cache
-    - cd $APPPATH && /usr/local/bin/ea-php83 artisan route:cache
-    - cd $APPPATH && /usr/local/bin/ea-php83 artisan view:cache
+    - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan config:cache
+    - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan route:cache
+    - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan view:cache
 
     # Crear enlace simbólico para storage
     - rm -f $PUBLICPATH/storage
