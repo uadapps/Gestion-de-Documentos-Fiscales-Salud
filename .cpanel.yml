@@ -98,7 +98,6 @@ deployment:
     - ls -la $APPPATH/storage/ || true
     - ls -la $APPPATH/vendor/ || true
     - cat $PUBLICPATH/index.php || true
-
     # Optional: try to capture webserver error_log into public_html (only if readable)
     - if [ -r /usr/local/apache/logs/error_log ]; then tail -n 200 /usr/local/apache/logs/error_log > $PUBLICPATH/deploy_error.log || true; fi
     - if [ -r /etc/apache2/logs/error_log ]; then tail -n 200 /etc/apache2/logs/error_log > $PUBLICPATH/deploy_error.log || true; fi
