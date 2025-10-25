@@ -51,3 +51,29 @@ deployment:
 
     - grep -q "DirectoryIndex index.php" $PUBLICPATH/.htaccess || \
       (echo 'DirectoryIndex index.php' >> $PUBLICPATH/.htaccess)
+    # --- FALTABA: symlink a storage y permisos ---
+    - rm -f /home/suguad/public_html/storage
+    - ln -s /home/suguad/documentos_fiscales_app/storage/app/public /home/suguad/public_html/storage
+
+    - find /home/suguad/documentos_fiscales_app/storage -type d -exec chmod 755 {} \;
+    - find /home/suguad/documentos_fiscales_app/storage -type f -exec chmod 644 {} \;
+    - find /home/suguad/documentos_fiscales_app/bootstrap/cache -type d -exec chmod 755 {} \;
+    - find /home/suguad/documentos_fiscales_app/bootstrap/cache -type f -exec chmod 644 {} \;
+
+    # --- FALTABA: asegurar PHP 8.3 y reglas en .htaccess ---
+    - grep -q "AddHandler application/x-httpd-ea-php83 .php" /home/suguad/public_html/.htaccess || \
+      (echo '<IfModule mime_module>' >> /home/suguad/public_html/.htaccess && \
+       echo '  AddHandler application/x-httpd-ea-php83 .php' >> /home/suguad/public_html/.htaccess && \
+       echo '</IfModule>' >> /home/suguad/public_html/.htaccess)
+
+    - grep -q "DirectoryIndex index.php" /home/suguad/public_html/.htaccess || \
+      (echo 'DirectoryIndex index.php' >> /home/suguad/public_html/.htaccess)
+
+    - grep -q "RewriteEngine On" /home/suguad/public_html/.htaccess || \
+      (echo '<IfModule mod_rewrite.c>' >> /home/suguad/public_html/.htaccess && \
+       echo 'RewriteEngine On' >> /home/suguad/public_html/.htaccess && \
+       echo 'RewriteCond %{REQUEST_URI} !^/storage' >> /home/suguad/public_html/.htaccess && \
+       echo 'RewriteCond %{REQUEST_FILENAME} !-d' >> /home/suguad/public_html/.htaccess && \
+       echo 'RewriteCond %{REQUEST_FILENAME} !-f' >> /home/suguad/public_html/.htaccess && \
+       echo 'RewriteRule ^ index.php [L]' >> /home/suguad/public_html/.htaccess && \
+       echo '</IfModule>' >> /home/suguad/public_html/.htaccess)
