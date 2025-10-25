@@ -27,7 +27,6 @@ deployment:
     - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M composer.phar dump-autoload -o
     - cd $APPPATH && /bin/cp .env.example .env
     - cd $APPPATH && sed -i 's|^APP_KEY=.*$|APP_KEY=base64:K8vX9mR2pL5nQ7wT1uY6iO3aS9dF2gH4jK8lM0nP5qR7t|g' .env
-    - cd $APPPATH && sed -i 's|^APP_URL=.*$|APP_URL=https://sug.uad.mx|g' .env
     - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan config:cache || true
     - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan route:cache || true
     - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan view:cache || true
