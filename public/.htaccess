@@ -29,13 +29,6 @@
     RewriteRule ^ index.php [L]
 </IfModule>
 
-# Configuración para archivos grandes
-php_value upload_max_filesize 20M
-php_value post_max_size 25M
-php_value max_execution_time 300
-php_value max_input_time 300
-php_value memory_limit 512M
-
 # Configuración para activos estáticos y caché
 <IfModule mod_expires.c>
     ExpiresActive On
