@@ -57,17 +57,17 @@ deployment:
     - /bin/cp -R public/build $APPPATH/public/ 2>/dev/null || true
 
     # Instalar dependencias de Composer
-    - cd $APPPATH && /usr/local/bin/ea-php82 /opt/cpanel/composer/bin/composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+    - cd $APPPATH && php /opt/cpanel/composer/bin/composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 
     # Crear enlace simbólico para storage
     - rm -f $PUBLICPATH/storage
     - ln -s $APPPATH/storage/app/public $PUBLICPATH/storage
 
     # Optimizar Laravel (cachés)
-    - cd $APPPATH && /usr/local/bin/ea-php82 artisan config:cache
-    - cd $APPPATH && /usr/local/bin/ea-php82 artisan route:cache
-    - cd $APPPATH && /usr/local/bin/ea-php82 artisan view:cache
-    - cd $APPPATH && /usr/local/bin/ea-php82 artisan optimize
+    - cd $APPPATH && php artisan config:cache
+    - cd $APPPATH && php artisan route:cache
+    - cd $APPPATH && php artisan view:cache
+    - cd $APPPATH && php artisan optimize
 
     # Configurar permisos correctos
     - find $APPPATH/storage -type d -exec chmod 755 {} \;
