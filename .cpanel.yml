@@ -8,13 +8,11 @@ deployment:
     - /bin/cp -R lang $APPPATH/ 2>/dev/null || true
     - /bin/cp composer.json composer.lock artisan .env.example package.json pnpm-lock.yaml vite.config.ts tsconfig.json eslint.config.js components.json $APPPATH/
     - /bin/cp phpunit.xml README.md $APPPATH/ 2>/dev/null || true
-    - /bin/cp public/.htaccess public/robots.txt public/index.php $PUBLICPATH/
+  - /bin/cp public/.htaccess public/robots.txt public/index.php $PUBLICPATH/
     - /bin/cp public/favicon.ico $PUBLICPATH/ 2>/dev/null || true
     - /bin/cp public/favicon.svg $PUBLICPATH/ 2>/dev/null || true
     - /bin/cp -R public/img $PUBLICPATH/ 2>/dev/null || true
     - /bin/cp -R public/build $PUBLICPATH/ 2>/dev/null || true
-    - sed -i 's|__DIR__.*/vendor/autoload.php|/home/suguad/documentos_fiscales_app/vendor/autoload.php|g' $PUBLICPATH/index.php
-    - sed -i 's|__DIR__.*/bootstrap/app.php|/home/suguad/documentos_fiscales_app/bootstrap/app.php|g' $PUBLICPATH/index.php
     - echo '<?php' > $PUBLICPATH/index_backup.php
     - echo 'require_once "/home/suguad/documentos_fiscales_app/vendor/autoload.php";' >> $PUBLICPATH/index_backup.php
     - echo '$app = require_once "/home/suguad/documentos_fiscales_app/bootstrap/app.php";' >> $PUBLICPATH/index_backup.php
@@ -22,6 +20,7 @@ deployment:
     - echo '$response = $kernel->handle($request = Illuminate\\Http\\Request::capture());' >> $PUBLICPATH/index_backup.php
     - echo '$response->send();' >> $PUBLICPATH/index_backup.php
     - echo '$kernel->terminate($request, $response);' >> $PUBLICPATH/index_backup.php
+  - /bin/cp $PUBLICPATH/index_backup.php $PUBLICPATH/index.php
     - cd $APPPATH && curl -sS https://getcomposer.org/installer | /usr/local/bin/ea-php83 -d allow_url_fopen=1 -- --install-dir=. --filename=composer.phar
     - cd $APPPATH && /usr/local/bin/ea-php83 -d allow_url_fopen=1 -d memory_limit=512M composer.phar install --optimize-autoloader --no-dev --no-interaction
     - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M composer.phar dump-autoload -o
