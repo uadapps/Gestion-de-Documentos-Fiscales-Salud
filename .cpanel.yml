@@ -46,9 +46,12 @@ deployment:
 
     # Copiar archivos públicos al directorio público
     - /bin/cp -R public/* $PUBLICPATH/
-    
+
     # Copiar el index.php correcto para producción
     - /bin/cp public/index-cpanel.php $PUBLICPATH/index.php
+
+    # Asegurar que .htaccess esté presente
+    - /bin/cp public/.htaccess $PUBLICPATH/.htaccess
 
     # Copiar assets compilados también a la aplicación Laravel
     - /bin/cp -R public/build $APPPATH/public/ 2>/dev/null || true
