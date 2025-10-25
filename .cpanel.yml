@@ -58,17 +58,18 @@ deployment:
     - /bin/cp -R public/build $APPPATH/public/ 2>/dev/null || true
 
     # Instalar dependencias de Composer
-    - cd $APPPATH && php composer.phar install --no-dev --no-interaction --prefer-dist --optimize-autoloader 2>/dev/null || curl -sS https://getcomposer.org/installer | php && php composer.phar install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+    - export PATH=/opt/cpanel/ea-php83/root/usr/bin:$PATH
+    - cd $APPPATH && /opt/cpanel/ea-php83/root/usr/bin/php composer.phar install --no-dev --no-interaction --prefer-dist --optimize-autoloader 2>/dev/null || curl -sS https://getcomposer.org/installer | /opt/cpanel/ea-php83/root/usr/bin/php && /opt/cpanel/ea-php83/root/usr/bin/php composer.phar install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 
     # Crear enlace simbólico para storage
     - rm -f $PUBLICPATH/storage
     - ln -s $APPPATH/storage/app/public $PUBLICPATH/storage
 
     # Optimizar Laravel (cachés)
-    - cd $APPPATH && php artisan config:cache
-    - cd $APPPATH && php artisan route:cache
-    - cd $APPPATH && php artisan view:cache
-    - cd $APPPATH && php artisan optimize
+    - cd $APPPATH && /opt/cpanel/ea-php83/root/usr/bin/php artisan config:cache
+    - cd $APPPATH && /opt/cpanel/ea-php83/root/usr/bin/php artisan route:cache
+    - cd $APPPATH && /opt/cpanel/ea-php83/root/usr/bin/php artisan view:cache
+    - cd $APPPATH && /opt/cpanel/ea-php83/root/usr/bin/php artisan optimize
 
     # Configurar permisos correctos
     - find $APPPATH/storage -type d -exec chmod 755 {} \;
