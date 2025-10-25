@@ -47,10 +47,10 @@ deployment:
 
     # Copiar archivos públicos al directorio público
     - /bin/cp -R public/* $PUBLICPATH/
-    
+
     # Asegurar que .htaccess esté presente
     - /bin/cp public/.htaccess $PUBLICPATH/.htaccess
-    
+
     # Copiar el index.php correcto para producción (DEBE SER DESPUÉS de copiar public/*)
     - /bin/cp public/index-cpanel.php $PUBLICPATH/index.php
 
