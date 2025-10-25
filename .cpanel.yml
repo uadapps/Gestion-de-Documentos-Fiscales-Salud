@@ -34,16 +34,15 @@ deployment:
     - /bin/cp -R database $APPPATH/
     - /bin/cp -R bootstrap $APPPATH/
     - /bin/cp -R storage $APPPATH/
-    - /bin/cp -R vendor $APPPATH/
-    - /bin/cp -R lang $APPPATH/
+    - /bin/cp -R lang $APPPATH/ 2>/dev/null || true
     - /bin/cp composer.json $APPPATH/
     - /bin/cp composer.lock $APPPATH/
     - /bin/cp artisan $APPPATH/
     - /bin/cp .env.example $APPPATH/
-    - /bin/cp package.json $APPPATH/
-    - /bin/cp pnpm-lock.yaml $APPPATH/
-    - /bin/cp vite.config.ts $APPPATH/
-    - /bin/cp tsconfig.json $APPPATH/
+    - /bin/cp package.json $APPPATH/ 2>/dev/null || true
+    - /bin/cp pnpm-lock.yaml $APPPATH/ 2>/dev/null || true
+    - /bin/cp vite.config.ts $APPPATH/ 2>/dev/null || true
+    - /bin/cp tsconfig.json $APPPATH/ 2>/dev/null || true
 
     # Copiar archivos públicos al directorio público
     - /bin/cp -R public/* $PUBLICPATH/
@@ -51,8 +50,8 @@ deployment:
     # Copiar assets compilados también a la aplicación Laravel
     - /bin/cp -R public/build $APPPATH/public/ 2>/dev/null || true
 
-    # Optimizar autoload de Composer
-    - cd $APPPATH && /usr/local/bin/ea-php82 /opt/cpanel/composer/bin/composer dump-autoload --optimize
+    # Instalar dependencias de Composer
+    - cd $APPPATH && /usr/local/bin/ea-php82 /opt/cpanel/composer/bin/composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 
     # Crear enlace simbólico para storage
     - rm -f $PUBLICPATH/storage
