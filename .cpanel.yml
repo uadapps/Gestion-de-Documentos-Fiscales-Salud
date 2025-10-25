@@ -37,6 +37,7 @@ deployment:
     - /bin/cp -R lang $APPPATH/ 2>/dev/null || true
     - /bin/cp composer.json $APPPATH/
     - /bin/cp composer.lock $APPPATH/
+    - /bin/cp composer.phar $APPPATH/ 2>/dev/null || true
     - /bin/cp artisan $APPPATH/
     - /bin/cp .env.example $APPPATH/
     - /bin/cp package.json $APPPATH/ 2>/dev/null || true
@@ -57,7 +58,7 @@ deployment:
     - /bin/cp -R public/build $APPPATH/public/ 2>/dev/null || true
 
     # Instalar dependencias de Composer
-    - cd $APPPATH && composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+    - cd $APPPATH && php composer.phar install --no-dev --no-interaction --prefer-dist --optimize-autoloader 2>/dev/null || curl -sS https://getcomposer.org/installer | php && php composer.phar install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 
     # Crear enlace simbólico para storage
     - rm -f $PUBLICPATH/storage
