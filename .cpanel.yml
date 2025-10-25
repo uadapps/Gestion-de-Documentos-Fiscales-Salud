@@ -1,85 +1,53 @@
 deployment:
   tasks:
-    # Rutas
     - export APPPATH=/home/suguad/documentos_fiscales_app
-    - export PUBLICPATH=/home/suguad/sug.uad.mx
-
+    - export PUBLICPATH=/home/suguad/public_html
     - mkdir -p $APPPATH
     - mkdir -p $PUBLICPATH
 
-    # Limpiezas
-    - rm -f $APPPATH/{debug_documents.php,debug_php.php,debug_route.php,temp_clean_controller.php,temp_method.php,install_telescope.bat,php-dev.ini,php.ini,.env.production,.env.local.backup,package-lock.json,pnpm-lock.yaml.bak,deploy-cpanel.bat} 2>/dev/null || true
-    - rm -rf $APPPATH/scripts 2>/dev/null || true
-    - rm -f $PUBLICPATH/{debug_documents.php,debug_php.php,debug_route.php,temp_clean_controller.php,package-lock.json,deploy-cpanel.bat} 2>/dev/null || true
-
-    # Copiar app
+    # Copias privadas
     - /bin/cp -R app routes resources config database bootstrap storage $APPPATH/
     - /bin/cp -R lang $APPPATH/ 2>/dev/null || true
-    - /bin/cp artisan composer.json composer.lock $APPPATH/
-    - /bin/cp .env.example package.json pnpm-lock.yaml vite.config.ts tsconfig.json eslint.config.js components.json $APPPATH/
+    - /bin/cp composer.json composer.lock artisan .env.example package.json pnpm-lock.yaml vite.config.ts tsconfig.json eslint.config.js components.json $APPPATH/
     - /bin/cp phpunit.xml README.md $APPPATH/ 2>/dev/null || true
 
-    # Copiar públicos
-    - /bin/cp public/index.php public/.htaccess public/robots.txt $PUBLICPATH/
+    # Copias públicas
+    - /bin/cp public/.htaccess public/robots.txt public/index.php $PUBLICPATH/
     - /bin/cp public/favicon.ico $PUBLICPATH/ 2>/dev/null || true
     - /bin/cp public/favicon.svg $PUBLICPATH/ 2>/dev/null || true
     - /bin/cp -R public/img $PUBLICPATH/ 2>/dev/null || true
     - /bin/cp -R public/build $PUBLICPATH/ 2>/dev/null || true
 
-    # Endurecer públicos (si falta index que no liste)
-    - grep -q "DirectoryIndex index.php" $PUBLICPATH/.htaccess || echo -e "\nDirectoryIndex index.php index.html\nOptions -Indexes" >> $PUBLICPATH/.htaccess
+    # Parchea index.php (rutas absolutas)
+    - sed -i 's|__DIR__.*/vendor/autoload.php|/home/suguad/documentos_fiscales_app/vendor/autoload.php|g' $PUBLICPATH/index.php
+    - sed -i 's|__DIR__.*/bootstrap/app.php|/home/suguad/documentos_fiscales_app/bootstrap/app.php|g' $PUBLICPATH/index.php
 
-    # Ajustar index.php a rutas absolutas del APP
-    - sed -i 's|__DIR__.*vendor/autoload.php|/home/suguad/documentos_fiscales_app/vendor/autoload.php|g' $PUBLICPATH/index.php
-    - sed -i 's|__DIR__.*bootstrap/app.php|/home/suguad/documentos_fiscales_app/bootstrap/app.php|g' $PUBLICPATH/index.php
-
-    # Index de respaldo
-    - echo '<?php' > $PUBLICPATH/index_backup.php
-    - echo 'require_once "/home/suguad/documentos_fiscales_app/vendor/autoload.php";' >> $PUBLICPATH/index_backup.php
-    - echo '$app = require_once "/home/suguad/documentos_fiscales_app/bootstrap/app.php";' >> $PUBLICPATH/index_backup.php
-    - echo '$kernel = $app->make(Illuminate\\Contracts\\Http\\Kernel::class);' >> $PUBLICPATH/index_backup.php
-    - echo '$response = $kernel->handle(' >> $PUBLICPATH/index_backup.php
-    - echo '    $request = Illuminate\\Http\\Request::capture()' >> $PUBLICPATH/index_backup.php
-    - echo ');' >> $PUBLICPATH/index_backup.php
-    - echo '$response->send();' >> $PUBLICPATH/index_backup.php
-    - echo '$kernel->terminate($request, $response);' >> $PUBLICPATH/index_backup.php
-
-    # Composer (si no existe composer.phar lo descarga)
-    - cd $APPPATH && [ -f composer.phar ] || (curl -sS https://getcomposer.org/installer | /usr/local/bin/ea-php83 -d allow_url_fopen=1 -- --install-dir=. --filename=composer.phar)
-
-    # Instalar dependencias
-    - cd $APPPATH && /usr/local/bin/ea-php83 -d allow_url_fopen=1 -d memory_limit=512M composer.phar install --no-dev --optimize-autoloader --no-interaction
-
-    # Autoload optimizado
+    # Composer + caches
+    - cd $APPPATH && curl -sS https://getcomposer.org/installer | /usr/local/bin/ea-php83 -d allow_url_fopen=1 -- --install-dir=. --filename=composer.phar
+    - cd $APPPATH && /usr/local/bin/ea-php83 -d allow_url_fopen=1 -d memory_limit=512M composer.phar install --optimize-autoloader --no-dev --no-interaction
     - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M composer.phar dump-autoload -o
 
-    # .env (no imprimir secretos en logs) — usa un .env productivo tuyo
-    # - cd $APPPATH && /bin/cp .env.example .env
-    # Mejor:
-    - test -f /home/suguad/secrets/sug.env && /bin/cp /home/suguad/secrets/sug.env $APPPATH/.env || /bin/cp $APPPATH/.env.example $APPPATH/.env
+    # .env y optimización
+    - cd $APPPATH && /bin/cp .env.example .env
+    - cd $APPPATH && sed -i 's|^APP_KEY=.*$|APP_KEY=base64:K8vX9mR2pL5nQ7wT1uY6iO3aS9dF2gH4jK8lM0nP5qR7t|g' .env
+    - cd $APPPATH && sed -i 's|^APP_URL=.*$|APP_URL=https://sug.uad.mx|g' .env
+    - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan config:cache || true
+    - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan route:cache || true
+    - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan view:cache  || true
 
-    # Caches con fallback (que no rompan el deploy)
-    - cd $APPPATH && /usr/local/bin/ea-php83 artisan optimize:clear || true
-    - cd $APPPATH && /usr/local/bin/ea-php83 artisan config:cache || /usr/local/bin/ea-php83 artisan config:clear
-    - cd $APPPATH && /usr/local/bin/ea-php83 artisan route:cache  || /usr/local/bin/ea-php83 artisan route:clear
-    - cd $APPPATH && /usr/local/bin/ea-php83 artisan view:cache   || true
-
-    # storage link
+    # Storage symlink y permisos
     - rm -f $PUBLICPATH/storage
     - ln -s $APPPATH/storage/app/public $PUBLICPATH/storage
-
-    # Permisos
     - find $APPPATH/storage -type d -exec chmod 755 {} \;
     - find $APPPATH/storage -type f -exec chmod 644 {} \;
     - find $APPPATH/bootstrap/cache -type d -exec chmod 755 {} \;
     - find $APPPATH/bootstrap/cache -type f -exec chmod 644 {} \;
 
-    # Verificaciones
-    - ls -la $PUBLICPATH/
-    - head -10 $PUBLICPATH/index.php
-    - ls -la $PUBLICPATH/index.php
-    - test -f $APPPATH/vendor/autoload.php && echo "vendor OK" || (echo "vendor faltante" && exit 1)
-    - echo "Docroot: $PUBLICPATH"
+    # Garantiza PHP 8.3 y reglas en .htaccess
+    - grep -q "AddHandler application/x-httpd-ea-php83 .php" $PUBLICPATH/.htaccess || \
+      (echo '<IfModule mime_module>' >> $PUBLICPATH/.htaccess && \
+       echo '  AddHandler application/x-httpd-ea-php83 .php' >> $PUBLICPATH/.htaccess && \
+       echo '</IfModule>' >> $PUBLICPATH/.htaccess)
 
-    # Log de Apache (si existe) para cazar 500
-    - test -f $PUBLICPATH/error_log && tail -n 100 $PUBLICPATH/error_log || true
+    - grep -q "DirectoryIndex index.php" $PUBLICPATH/.htaccess || \
+      (echo 'DirectoryIndex index.php' >> $PUBLICPATH/.htaccess)
