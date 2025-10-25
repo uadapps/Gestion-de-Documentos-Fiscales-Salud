@@ -1,79 +1,76 @@
 deployment:
   tasks:
+    # Rutas
     - export APPPATH=/home/suguad/documentos_fiscales_app
     - export PUBLICPATH=/home/suguad/public_html
+
+    # Asegurar directorios base
     - mkdir -p $APPPATH
     - mkdir -p $PUBLICPATH
 
-    # Copias privadas
+    # Copiar app Laravel al directorio privado
     - /bin/cp -R app routes resources config database bootstrap storage $APPPATH/
     - /bin/cp -R lang $APPPATH/ 2>/dev/null || true
     - /bin/cp composer.json composer.lock artisan .env.example package.json pnpm-lock.yaml vite.config.ts tsconfig.json eslint.config.js components.json $APPPATH/
     - /bin/cp phpunit.xml README.md $APPPATH/ 2>/dev/null || true
 
-    # Copias públicas
+    # Copiar archivos públicos al DocumentRoot
     - /bin/cp public/.htaccess public/robots.txt public/index.php $PUBLICPATH/
     - /bin/cp public/favicon.ico $PUBLICPATH/ 2>/dev/null || true
     - /bin/cp public/favicon.svg $PUBLICPATH/ 2>/dev/null || true
     - /bin/cp -R public/img $PUBLICPATH/ 2>/dev/null || true
     - /bin/cp -R public/build $PUBLICPATH/ 2>/dev/null || true
 
-    # Parchea index.php (rutas absolutas)
+    # Ajustar index.php para apuntar a la app privada
     - sed -i 's|__DIR__.*/vendor/autoload.php|/home/suguad/documentos_fiscales_app/vendor/autoload.php|g' $PUBLICPATH/index.php
     - sed -i 's|__DIR__.*/bootstrap/app.php|/home/suguad/documentos_fiscales_app/bootstrap/app.php|g' $PUBLICPATH/index.php
 
-    # Composer + caches
+    # (Opcional) index de respaldo directo por si algo falla
+    - echo '<?php' > $PUBLICPATH/index_backup.php
+    - echo 'require_once "/home/suguad/documentos_fiscales_app/vendor/autoload.php";' >> $PUBLICPATH/index_backup.php
+    - echo '$app = require_once "/home/suguad/documentos_fiscales_app/bootstrap/app.php";' >> $PUBLICPATH/index_backup.php
+    - echo '$kernel = $app->make(Illuminate\\Contracts\\Http\\Kernel::class);' >> $PUBLICPATH/index_backup.php
+    - echo '$response = $kernel->handle($request = Illuminate\\Http\\Request::capture());' >> $PUBLICPATH/index_backup.php
+    - echo '$response->send();' >> $PUBLICPATH/index_backup.php
+    - echo '$kernel->terminate($request, $response);' >> $PUBLICPATH/index_backup.php
+
+    # Composer (instalador + dependencias sin dev)
     - cd $APPPATH && curl -sS https://getcomposer.org/installer | /usr/local/bin/ea-php83 -d allow_url_fopen=1 -- --install-dir=. --filename=composer.phar
     - cd $APPPATH && /usr/local/bin/ea-php83 -d allow_url_fopen=1 -d memory_limit=512M composer.phar install --optimize-autoloader --no-dev --no-interaction
     - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M composer.phar dump-autoload -o
 
-    # .env y optimización
+    # .env y ajustes básicos
     - cd $APPPATH && /bin/cp .env.example .env
     - cd $APPPATH && sed -i 's|^APP_KEY=.*$|APP_KEY=base64:K8vX9mR2pL5nQ7wT1uY6iO3aS9dF2gH4jK8lM0nP5qR7t|g' .env
     - cd $APPPATH && sed -i 's|^APP_URL=.*$|APP_URL=https://sug.uad.mx|g' .env
+
+    # Caches de Laravel
     - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan config:cache || true
     - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan route:cache || true
     - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan view:cache  || true
 
-    # Storage symlink y permisos
+    # Enlace simbólico de storage público
     - rm -f $PUBLICPATH/storage
     - ln -s $APPPATH/storage/app/public $PUBLICPATH/storage
+
+    # Permisos
     - find $APPPATH/storage -type d -exec chmod 755 {} \;
     - find $APPPATH/storage -type f -exec chmod 644 {} \;
     - find $APPPATH/bootstrap/cache -type d -exec chmod 755 {} \;
     - find $APPPATH/bootstrap/cache -type f -exec chmod 644 {} \;
+    - chmod -R 755 $APPPATH/storage/app/public
+    - chmod -R 755 $APPPATH/storage/framework/cache
+    - chmod -R 755 $APPPATH/storage/framework/sessions
+    - chmod -R 755 $APPPATH/storage/framework/views
+    - chmod -R 755 $APPPATH/storage/logs
 
-    # Garantiza PHP 8.3 y reglas en .htaccess
-    - grep -q "AddHandler application/x-httpd-ea-php83 .php" $PUBLICPATH/.htaccess || \
-      (echo '<IfModule mime_module>' >> $PUBLICPATH/.htaccess && \
-       echo '  AddHandler application/x-httpd-ea-php83 .php' >> $PUBLICPATH/.htaccess && \
-       echo '</IfModule>' >> $PUBLICPATH/.htaccess)
+    # Asegurar .htaccess y PHP 8.3 / rewrites (idempotente)
+    - [ -f $PUBLICPATH/.htaccess ] || touch $PUBLICPATH/.htaccess
+    - if ! grep -q "AddHandler application/x-httpd-ea-php83 .php" $PUBLICPATH/.htaccess; then echo '<IfModule mime_module>' >> $PUBLICPATH/.htaccess; echo '  AddHandler application/x-httpd-ea-php83 .php' >> $PUBLICPATH/.htaccess; echo '</IfModule>' >> $PUBLICPATH/.htaccess; fi
+    - if ! grep -q "DirectoryIndex index.php" $PUBLICPATH/.htaccess; then echo 'DirectoryIndex index.php' >> $PUBLICPATH/.htaccess; fi
+    - if ! grep -q "RewriteEngine On" $PUBLICPATH/.htaccess; then echo '<IfModule mod_rewrite.c>' >> $PUBLICPATH/.htaccess; echo 'RewriteEngine On' >> $PUBLICPATH/.htaccess; echo 'RewriteCond %{REQUEST_URI} !^/storage' >> $PUBLICPATH/.htaccess; echo 'RewriteCond %{REQUEST_FILENAME} !-d' >> $PUBLICPATH/.htaccess; echo 'RewriteCond %{REQUEST_FILENAME} !-f' >> $PUBLICPATH/.htaccess; echo 'RewriteRule ^ index.php [L]' >> $PUBLICPATH/.htaccess; echo '</IfModule>' >> $PUBLICPATH/.htaccess; fi
 
-    - grep -q "DirectoryIndex index.php" $PUBLICPATH/.htaccess || \
-      (echo 'DirectoryIndex index.php' >> $PUBLICPATH/.htaccess)
-    # --- FALTABA: symlink a storage y permisos ---
-    - rm -f /home/suguad/public_html/storage
-    - ln -s /home/suguad/documentos_fiscales_app/storage/app/public /home/suguad/public_html/storage
-
-    - find /home/suguad/documentos_fiscales_app/storage -type d -exec chmod 755 {} \;
-    - find /home/suguad/documentos_fiscales_app/storage -type f -exec chmod 644 {} \;
-    - find /home/suguad/documentos_fiscales_app/bootstrap/cache -type d -exec chmod 755 {} \;
-    - find /home/suguad/documentos_fiscales_app/bootstrap/cache -type f -exec chmod 644 {} \;
-
-    # --- FALTABA: asegurar PHP 8.3 y reglas en .htaccess ---
-    - grep -q "AddHandler application/x-httpd-ea-php83 .php" /home/suguad/public_html/.htaccess || \
-      (echo '<IfModule mime_module>' >> /home/suguad/public_html/.htaccess && \
-       echo '  AddHandler application/x-httpd-ea-php83 .php' >> /home/suguad/public_html/.htaccess && \
-       echo '</IfModule>' >> /home/suguad/public_html/.htaccess)
-
-    - grep -q "DirectoryIndex index.php" /home/suguad/public_html/.htaccess || \
-      (echo 'DirectoryIndex index.php' >> /home/suguad/public_html/.htaccess)
-
-    - grep -q "RewriteEngine On" /home/suguad/public_html/.htaccess || \
-      (echo '<IfModule mod_rewrite.c>' >> /home/suguad/public_html/.htaccess && \
-       echo 'RewriteEngine On' >> /home/suguad/public_html/.htaccess && \
-       echo 'RewriteCond %{REQUEST_URI} !^/storage' >> /home/suguad/public_html/.htaccess && \
-       echo 'RewriteCond %{REQUEST_FILENAME} !-d' >> /home/suguad/public_html/.htaccess && \
-       echo 'RewriteCond %{REQUEST_FILENAME} !-f' >> /home/suguad/public_html/.htaccess && \
-       echo 'RewriteRule ^ index.php [L]' >> /home/suguad/public_html/.htaccess && \
-       echo '</IfModule>' >> /home/suguad/public_html/.htaccess)
+    # Verificaciones finales
+    - ls -la $PUBLICPATH/
+    - head -10 $PUBLICPATH/index.php
+    - ls -la $PUBLICPATH/index.php
