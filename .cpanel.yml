@@ -57,7 +57,7 @@ deployment:
     - /bin/cp -R public/build $APPPATH/public/ 2>/dev/null || true
 
     # Instalar dependencias de Composer
-    - cd $APPPATH && php /opt/cpanel/composer/bin/composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+    - cd $APPPATH && composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 
     # Crear enlace simbólico para storage
     - rm -f $PUBLICPATH/storage
