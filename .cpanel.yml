@@ -41,10 +41,22 @@ deployment:
     - chmod -R 755 $APPPATH/storage/framework/sessions
     - chmod -R 755 $APPPATH/storage/framework/views
     - chmod -R 755 $APPPATH/storage/logs
-    - [ -f $PUBLICPATH/.htaccess ] || touch $PUBLICPATH/.htaccess
+    - echo "=== CREAR ARCHIVO DE PRUEBA PHP ==="
+    - echo '<?php phpinfo(); ?>' > $PUBLICPATH/test.php
+    - echo "=== VERIFICACION DE ARCHIVOS ==="
     - if ! grep -q "AddHandler application/x-httpd-ea-php83 .php" $PUBLICPATH/.htaccess; then echo '<IfModule mime_module>' >> $PUBLICPATH/.htaccess; echo '  AddHandler application/x-httpd-ea-php83 .php' >> $PUBLICPATH/.htaccess; echo '</IfModule>' >> $PUBLICPATH/.htaccess; fi
     - if ! grep -q "DirectoryIndex index.php" $PUBLICPATH/.htaccess; then echo 'DirectoryIndex index.php' >> $PUBLICPATH/.htaccess; fi
     - if ! grep -q "RewriteEngine On" $PUBLICPATH/.htaccess; then echo '<IfModule mod_rewrite.c>' >> $PUBLICPATH/.htaccess; echo 'RewriteEngine On' >> $PUBLICPATH/.htaccess; echo 'RewriteCond %{REQUEST_URI} !^/storage' >> $PUBLICPATH/.htaccess; echo 'RewriteCond %{REQUEST_FILENAME} !-d' >> $PUBLICPATH/.htaccess; echo 'RewriteCond %{REQUEST_FILENAME} !-f' >> $PUBLICPATH/.htaccess; echo 'RewriteRule ^ index.php [L]' >> $PUBLICPATH/.htaccess; echo '</IfModule>' >> $PUBLICPATH/.htaccess; fi
     - ls -la $PUBLICPATH/
     - head -10 $PUBLICPATH/index.php
     - ls -la $PUBLICPATH/index.php
+    - echo "=== VERIFICACION DE ARCHIVOS ==="
+    - ls -la $APPPATH/
+    - echo "=== VERIFICACION DEL .ENV ==="
+    - head -5 $APPPATH/.env
+    - echo "=== VERIFICACION DE PERMISOS ==="
+    - ls -la $APPPATH/storage/
+    - echo "=== VERIFICACION DE VENDOR ==="
+    - ls -la $APPPATH/vendor/
+    - echo "=== VERIFICACION DE INDEX.PHP ==="
+    - cat $PUBLICPATH/index.php
