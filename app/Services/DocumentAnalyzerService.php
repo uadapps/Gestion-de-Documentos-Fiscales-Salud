@@ -12,7 +12,7 @@ class DocumentAnalyzerService
 
     public function __construct()
     {
-        $this->apiKey = config('openai.api_key', env('OPENAI_API_KEY', 'sk-proj-R4iVs3Fj25clL3USOuonT3BlbkFJZLBwRADJaIcJqyBkWzLB'));
+        $this->apiKey = config('openai.api_key', env('OPENAI_API_KEY'));
         $this->baseUrl = config('openai.base_url', 'https://api.openai.com/v1/chat/completions');
     }
 
