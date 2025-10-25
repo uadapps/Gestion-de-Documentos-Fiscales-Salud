@@ -9,7 +9,7 @@ deployment:
     - export APPPATH=/home/suguad/documentos_app
     - export PUBLICPATH=/home/suguad/public_html
     - mkdir -p $APPPATH
-    
+
     # Limpiar archivos innecesarios del despliegue anterior
     - rm -f $APPPATH/debug_documents.php 2>/dev/null || true
     - rm -f $APPPATH/debug_php.php 2>/dev/null || true
@@ -25,7 +25,7 @@ deployment:
     - rm -f $PUBLICPATH/debug_php.php 2>/dev/null || true
     - rm -f $PUBLICPATH/debug_route.php 2>/dev/null || true
     - rm -f $PUBLICPATH/package-lock.json 2>/dev/null || true
-    
+
     # Copiar aplicación Laravel al directorio privado
     - /bin/cp -R app $APPPATH/
     - /bin/cp -R routes $APPPATH/
@@ -44,26 +44,26 @@ deployment:
     - /bin/cp pnpm-lock.yaml $APPPATH/
     - /bin/cp vite.config.ts $APPPATH/
     - /bin/cp tsconfig.json $APPPATH/
-    
+
     # Copiar archivos públicos al directorio público
     - /bin/cp -R public/* $PUBLICPATH/
-    
+
     # Copiar assets compilados también a la aplicación Laravel
     - /bin/cp -R public/build $APPPATH/public/ 2>/dev/null || true
-    
+
     # Optimizar autoload de Composer
     - cd $APPPATH && /usr/local/bin/ea-php82 /opt/cpanel/composer/bin/composer dump-autoload --optimize
-    
+
     # Crear enlace simbólico para storage
     - rm -f $PUBLICPATH/storage
     - ln -s $APPPATH/storage/app/public $PUBLICPATH/storage
-    
+
     # Optimizar Laravel (cachés)
     - cd $APPPATH && /usr/local/bin/ea-php82 artisan config:cache
     - cd $APPPATH && /usr/local/bin/ea-php82 artisan route:cache
     - cd $APPPATH && /usr/local/bin/ea-php82 artisan view:cache
     - cd $APPPATH && /usr/local/bin/ea-php82 artisan optimize
-    
+
     # Configurar permisos correctos
     - find $APPPATH/storage -type d -exec chmod 755 {} \;
     - find $APPPATH/storage -type f -exec chmod 644 {} \;
