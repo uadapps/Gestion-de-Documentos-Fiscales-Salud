@@ -43,10 +43,26 @@ deployment:
     - chmod -R 755 $APPPATH/storage/logs
     - echo "=== CREAR ARCHIVO DE PRUEBA PHP ==="
     - echo '<?php phpinfo(); ?>' > $PUBLICPATH/test.php
+    - chmod 644 $PUBLICPATH/test.php
+    - echo "=== CONFIGURAR HTACCESS BASICO ==="
+    - echo 'AddHandler application/x-httpd-ea-php83 .php' > $PUBLICPATH/.htaccess_backup
+    - echo 'DirectoryIndex index.php' >> $PUBLICPATH/.htaccess_backup
+    - echo '<IfModule mod_rewrite.c>' >> $PUBLICPATH/.htaccess_backup
+    - echo '    RewriteEngine On' >> $PUBLICPATH/.htaccess_backup
+    - echo '    RewriteCond %{REQUEST_FILENAME} !-d' >> $PUBLICPATH/.htaccess_backup
+    - echo '    RewriteCond %{REQUEST_FILENAME} !-f' >> $PUBLICPATH/.htaccess_backup
+    - echo '    RewriteRule ^ index.php [L]' >> $PUBLICPATH/.htaccess_backup
+    - echo '</IfModule>' >> $PUBLICPATH/.htaccess_backup
     - echo "=== VERIFICACION DE ARCHIVOS ==="
-    - if ! grep -q "AddHandler application/x-httpd-ea-php83 .php" $PUBLICPATH/.htaccess; then echo '<IfModule mime_module>' >> $PUBLICPATH/.htaccess; echo '  AddHandler application/x-httpd-ea-php83 .php' >> $PUBLICPATH/.htaccess; echo '</IfModule>' >> $PUBLICPATH/.htaccess; fi
-    - if ! grep -q "DirectoryIndex index.php" $PUBLICPATH/.htaccess; then echo 'DirectoryIndex index.php' >> $PUBLICPATH/.htaccess; fi
-    - if ! grep -q "RewriteEngine On" $PUBLICPATH/.htaccess; then echo '<IfModule mod_rewrite.c>' >> $PUBLICPATH/.htaccess; echo 'RewriteEngine On' >> $PUBLICPATH/.htaccess; echo 'RewriteCond %{REQUEST_URI} !^/storage' >> $PUBLICPATH/.htaccess; echo 'RewriteCond %{REQUEST_FILENAME} !-d' >> $PUBLICPATH/.htaccess; echo 'RewriteCond %{REQUEST_FILENAME} !-f' >> $PUBLICPATH/.htaccess; echo 'RewriteRule ^ index.php [L]' >> $PUBLICPATH/.htaccess; echo '</IfModule>' >> $PUBLICPATH/.htaccess; fi
+    - [ -f $PUBLICPATH/.htaccess ] || touch $PUBLICPATH/.htaccess
+    - echo 'AddHandler application/x-httpd-ea-php83 .php' > $PUBLICPATH/.htaccess
+    - echo 'DirectoryIndex index.php' >> $PUBLICPATH/.htaccess
+    - echo '<IfModule mod_rewrite.c>' >> $PUBLICPATH/.htaccess
+    - echo '    RewriteEngine On' >> $PUBLICPATH/.htaccess
+    - echo '    RewriteCond %{REQUEST_FILENAME} !-d' >> $PUBLICPATH/.htaccess
+    - echo '    RewriteCond %{REQUEST_FILENAME} !-f' >> $PUBLICPATH/.htaccess
+    - echo '    RewriteRule ^ index.php [L]' >> $PUBLICPATH/.htaccess
+    - echo '</IfModule>' >> $PUBLICPATH/.htaccess
     - ls -la $PUBLICPATH/
     - head -10 $PUBLICPATH/index.php
     - ls -la $PUBLICPATH/index.php
