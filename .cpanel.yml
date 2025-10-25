@@ -1,77 +1,105 @@
 deployment:
   tasks:
+    # Paths
     - export APPPATH=/home/suguad/documentos_fiscales_app
     - export PUBLICPATH=/home/suguad/public_html
+
+    # Ensure destinations exist
     - mkdir -p $APPPATH
     - mkdir -p $PUBLICPATH
+
+    # Copy core application files to private app path
     - /bin/cp -R app routes resources config database bootstrap storage $APPPATH/
     - /bin/cp -R lang $APPPATH/ 2>/dev/null || true
-    - /bin/cp composer.json composer.lock artisan .env.example package.json pnpm-lock.yaml vite.config.ts tsconfig.json eslint.config.js components.json $APPPATH/
+    - /bin/cp composer.json composer.lock artisan package.json pnpm-lock.yaml vite.config.ts tsconfig.json eslint.config.js components.json $APPPATH/ || true
     - /bin/cp phpunit.xml README.md $APPPATH/ 2>/dev/null || true
-  - /bin/cp public/.htaccess public/robots.txt public/index.php $PUBLICPATH/
+
+    # Copy public assets (keep ownership/permissions as user)
+    - /bin/cp public/.htaccess public/robots.txt public/index.php $PUBLICPATH/ || true
     - /bin/cp public/favicon.ico $PUBLICPATH/ 2>/dev/null || true
     - /bin/cp public/favicon.svg $PUBLICPATH/ 2>/dev/null || true
     - /bin/cp -R public/img $PUBLICPATH/ 2>/dev/null || true
     - /bin/cp -R public/build $PUBLICPATH/ 2>/dev/null || true
+
+    # Create a safe index backup (uses absolute paths to APPPATH)
     - echo '<?php' > $PUBLICPATH/index_backup.php
     - echo 'require_once "/home/suguad/documentos_fiscales_app/vendor/autoload.php";' >> $PUBLICPATH/index_backup.php
+    - echo '' >> $PUBLICPATH/index_backup.php
     - echo '$app = require_once "/home/suguad/documentos_fiscales_app/bootstrap/app.php";' >> $PUBLICPATH/index_backup.php
+    - echo '' >> $PUBLICPATH/index_backup.php
     - echo '$kernel = $app->make(Illuminate\\Contracts\\Http\\Kernel::class);' >> $PUBLICPATH/index_backup.php
     - echo '$response = $kernel->handle($request = Illuminate\\Http\\Request::capture());' >> $PUBLICPATH/index_backup.php
     - echo '$response->send();' >> $PUBLICPATH/index_backup.php
     - echo '$kernel->terminate($request, $response);' >> $PUBLICPATH/index_backup.php
-  - /bin/cp $PUBLICPATH/index_backup.php $PUBLICPATH/index.php
-    - cd $APPPATH && curl -sS https://getcomposer.org/installer | /usr/local/bin/ea-php83 -d allow_url_fopen=1 -- --install-dir=. --filename=composer.phar
-    - cd $APPPATH && /usr/local/bin/ea-php83 -d allow_url_fopen=1 -d memory_limit=512M composer.phar install --optimize-autoloader --no-dev --no-interaction
-    - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M composer.phar dump-autoload -o
-    - cd $APPPATH && /bin/cp .env.example .env
-    - cd $APPPATH && sed -i 's|^APP_KEY=.*$|APP_KEY=base64:K8vX9mR2pL5nQ7wT1uY6iO3aS9dF2gH4jK8lM0nP5qR7t|g' .env
-    - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan config:cache || true
-    - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan route:cache || true
-    - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan view:cache || true
-    - rm -f $PUBLICPATH/storage
-    - ln -s $APPPATH/storage/app/public $PUBLICPATH/storage
-    - find $APPPATH/storage -type d -exec chmod 755 {} \;
-    - find $APPPATH/storage -type f -exec chmod 644 {} \;
-    - find $APPPATH/bootstrap/cache -type d -exec chmod 755 {} \;
-    - find $APPPATH/bootstrap/cache -type f -exec chmod 644 {} \;
-    - chmod -R 755 $APPPATH/storage/app/public
-    - chmod -R 755 $APPPATH/storage/framework/cache
-    - chmod -R 755 $APPPATH/storage/framework/sessions
-    - chmod -R 755 $APPPATH/storage/framework/views
-    - chmod -R 755 $APPPATH/storage/logs
-    - echo "=== CREAR ARCHIVO DE PRUEBA PHP ==="
-    - echo '<?php phpinfo(); ?>' > $PUBLICPATH/test.php
-    - chmod 644 $PUBLICPATH/test.php
-    - echo "=== CONFIGURAR HTACCESS BASICO ==="
-    - echo 'AddHandler application/x-httpd-ea-php83 .php' > $PUBLICPATH/.htaccess_backup
-    - echo 'DirectoryIndex index.php' >> $PUBLICPATH/.htaccess_backup
-    - echo '<IfModule mod_rewrite.c>' >> $PUBLICPATH/.htaccess_backup
-    - echo '    RewriteEngine On' >> $PUBLICPATH/.htaccess_backup
-    - echo '    RewriteCond %{REQUEST_FILENAME} !-d' >> $PUBLICPATH/.htaccess_backup
-    - echo '    RewriteCond %{REQUEST_FILENAME} !-f' >> $PUBLICPATH/.htaccess_backup
-    - echo '    RewriteRule ^ index.php [L]' >> $PUBLICPATH/.htaccess_backup
-    - echo '</IfModule>' >> $PUBLICPATH/.htaccess_backup
-    - echo "=== VERIFICACION DE ARCHIVOS ==="
+
+    # Overwrite index.php with the safe backup to avoid brittle sed substitutions
+    - /bin/cp $PUBLICPATH/index_backup.php $PUBLICPATH/index.php || true
+
+    # Install Composer locally in APPPATH if missing
+    - if [ ! -f "$APPPATH/composer.phar" ]; then cd $APPPATH && curl -sS https://getcomposer.org/installer | /usr/local/bin/ea-php83 -d allow_url_fopen=1 -- --install-dir=. --filename=composer.phar; fi
+
+    # Run Composer install (server-side). If vendor already exists this will still verify and update autoload
+    - cd $APPPATH && /usr/local/bin/ea-php83 -d allow_url_fopen=1 -d memory_limit=512M ./composer.phar install --optimize-autoloader --no-dev --no-interaction || true
+    - cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M ./composer.phar dump-autoload -o || true
+
+    # NOTE: We DO NOT overwrite .env. The production .env should be edited manually for credentials and APP_URL.
+    - echo "# Skipping .env overwrite as requested by deploy policy" || true
+
+    # Artisan caches (guarded with || true to avoid halting deploy on warnings)
+    - if [ -f "$APPPATH/artisan" ]; then cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan config:cache || true; fi
+    - if [ -f "$APPPATH/artisan" ]; then cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan route:cache || true; fi
+    - if [ -f "$APPPATH/artisan" ]; then cd $APPPATH && /usr/local/bin/ea-php83 -d memory_limit=512M artisan view:cache || true; fi
+
+    # Storage symlink and permissions
+    - rm -f $PUBLICPATH/storage || true
+    - ln -s $APPPATH/storage/app/public $PUBLICPATH/storage || true
+    - find $APPPATH/storage -type d -exec chmod 755 {} \; || true
+    - find $APPPATH/storage -type f -exec chmod 644 {} \; || true
+    - find $APPPATH/bootstrap/cache -type d -exec chmod 755 {} \; || true
+    - find $APPPATH/bootstrap/cache -type f -exec chmod 644 {} \; || true
+    - chmod -R 755 $APPPATH/storage/app/public || true
+    - chmod -R 755 $APPPATH/storage/framework/cache || true
+    - chmod -R 755 $APPPATH/storage/framework/sessions || true
+    - chmod -R 755 $APPPATH/storage/framework/views || true
+    - chmod -R 755 $APPPATH/storage/logs || true
+
+    # Create a small phpinfo test page for quick diagnostics
+    - echo '<?php phpinfo(); ?>' > $PUBLICPATH/test.php || true
+    - chmod 644 $PUBLICPATH/test.php || true
+
+    # Minimal .htaccess to set PHP handler and front-controller rewrite
+    - echo 'AddHandler application/x-httpd-ea-php83 .php' > $PUBLICPATH/.htaccess_backup || true
+    - echo 'DirectoryIndex index.php' >> $PUBLICPATH/.htaccess_backup || true
+    - echo '<IfModule mod_rewrite.c>' >> $PUBLICPATH/.htaccess_backup || true
+    - echo '    RewriteEngine On' >> $PUBLICPATH/.htaccess_backup || true
+    - echo '    RewriteCond %{REQUEST_URI} !^/storage' >> $PUBLICPATH/.htaccess_backup || true
+    - echo '    RewriteCond %{REQUEST_FILENAME} !-d' >> $PUBLICPATH/.htaccess_backup || true
+    - echo '    RewriteCond %{REQUEST_FILENAME} !-f' >> $PUBLICPATH/.htaccess_backup || true
+    - echo '    RewriteRule ^ index.php [L]' >> $PUBLICPATH/.htaccess_backup || true
+    - echo '</IfModule>' >> $PUBLICPATH/.htaccess_backup || true
+
     - [ -f $PUBLICPATH/.htaccess ] || touch $PUBLICPATH/.htaccess
-    - echo 'AddHandler application/x-httpd-ea-php83 .php' > $PUBLICPATH/.htaccess
-    - echo 'DirectoryIndex index.php' >> $PUBLICPATH/.htaccess
-    - echo '<IfModule mod_rewrite.c>' >> $PUBLICPATH/.htaccess
-    - echo '    RewriteEngine On' >> $PUBLICPATH/.htaccess
-    - echo '    RewriteCond %{REQUEST_FILENAME} !-d' >> $PUBLICPATH/.htaccess
-    - echo '    RewriteCond %{REQUEST_FILENAME} !-f' >> $PUBLICPATH/.htaccess
-    - echo '    RewriteRule ^ index.php [L]' >> $PUBLICPATH/.htaccess
-    - echo '</IfModule>' >> $PUBLICPATH/.htaccess
-    - ls -la $PUBLICPATH/
-    - head -10 $PUBLICPATH/index.php
-    - ls -la $PUBLICPATH/index.php
-    - echo "=== VERIFICACION DE ARCHIVOS ==="
-    - ls -la $APPPATH/
-    - echo "=== VERIFICACION DEL .ENV ==="
-    - head -5 $APPPATH/.env
-    - echo "=== VERIFICACION DE PERMISOS ==="
-    - ls -la $APPPATH/storage/
-    - echo "=== VERIFICACION DE VENDOR ==="
-    - ls -la $APPPATH/vendor/
-    - echo "=== VERIFICACION DE INDEX.PHP ==="
-    - cat $PUBLICPATH/index.php
+    - echo 'AddHandler application/x-httpd-ea-php83 .php' > $PUBLICPATH/.htaccess || true
+    - echo 'DirectoryIndex index.php' >> $PUBLICPATH/.htaccess || true
+    - echo '<IfModule mod_rewrite.c>' >> $PUBLICPATH/.htaccess || true
+    - echo '    RewriteEngine On' >> $PUBLICPATH/.htaccess || true
+    - echo '    RewriteCond %{REQUEST_URI} !^/storage' >> $PUBLICPATH/.htaccess || true
+    - echo '    RewriteCond %{REQUEST_FILENAME} !-d' >> $PUBLICPATH/.htaccess || true
+    - echo '    RewriteCond %{REQUEST_FILENAME} !-f' >> $PUBLICPATH/.htaccess || true
+    - echo '    RewriteRule ^ index.php [L]' >> $PUBLICPATH/.htaccess || true
+    - echo '</IfModule>' >> $PUBLICPATH/.htaccess || true
+
+    # Diagnostics: list key dirs and show a few lines of important files
+    - ls -la $PUBLICPATH/ || true
+    - head -10 $PUBLICPATH/index.php || true
+    - ls -la $PUBLICPATH/index.php || true
+    - ls -la $APPPATH/ || true
+    - if [ -f $APPPATH/.env ]; then head -5 $APPPATH/.env || true; else echo 'no .env present' || true; fi
+    - ls -la $APPPATH/storage/ || true
+    - ls -la $APPPATH/vendor/ || true
+    - cat $PUBLICPATH/index.php || true
+
+    # Optional: try to capture webserver error_log into public_html (only if readable)
+    - if [ -r /usr/local/apache/logs/error_log ]; then tail -n 200 /usr/local/apache/logs/error_log > $PUBLICPATH/deploy_error.log || true; fi
+    - if [ -r /etc/apache2/logs/error_log ]; then tail -n 200 /etc/apache2/logs/error_log > $PUBLICPATH/deploy_error.log || true; fi
+    - if [ -r /var/log/apache2/error.log ]; then tail -n 200 /var/log/apache2/error.log > $PUBLICPATH/deploy_error.log || true; fi
