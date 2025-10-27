@@ -1187,6 +1187,24 @@ Devuelve **únicamente** un JSON con esta estructura exacta:
                 }
             }
 
+            // 🔗 VALIDACIÓN DE DOCUMENTOS RELACIONADOS/EQUIVALENTES
+            // Antes de rechazar, verificar si son documentos relacionados que deberían aceptarse
+            if ($this->sonDocumentosRelacionados($nombreRequerido, $documentoDetectado)) {
+                Log::info('✅ Documentos relacionados/equivalentes detectados', [
+                    'documento_requerido' => $nombreRequerido,
+                    'documento_detectado' => $documentoDetectado
+                ]);
+                return [
+                    'coincide' => true,
+                    'porcentaje_coincidencia' => 90,
+                    'razon' => "Documentos relacionados: '{$documentoDetectado}' es válido para '{$nombreRequerido}'",
+                    'accion' => 'aprobar',
+                    'documento_esperado' => $nombreRequerido,
+                    'documento_detectado' => $documentoDetectado,
+                    'evaluacion_gpt' => 'documentos_relacionados'
+                ];
+            }
+
             // Si no marcó coincidencia en catálogo, rechazar
             return [
                 'coincide' => false,
@@ -1287,6 +1305,124 @@ Devuelve **únicamente** un JSON con esta estructura exacta:
         }
 
         return $sonIncompatibles;
+    }
+
+    /**
+     * Verifica si dos documentos son relacionados/equivalentes y deberían aceptarse
+     */
+    private function sonDocumentosRelacionados($documentoRequerido, $documentoDetectado)
+    {
+        $requerido = strtolower(trim($documentoRequerido));
+        $detectado = strtolower(trim($documentoDetectado));
+
+        // Definir grupos de documentos relacionados/equivalentes
+        $gruposRelacionados = [
+            // Grupo: Seguridad Estructural
+            'seguridad_estructural' => [
+                'constancia de seguridad estructural',
+                'registro de perito en estructuras',
+                'registro de perito estructuras',
+                'registro perito estructural',
+                'cedula profesional perito',
+                'cédula profesional perito',
+                'dictamen estructural',
+                'responsiva estructural'
+            ],
+            
+            // Grupo: Protección Civil
+            'proteccion_civil' => [
+                'visto bueno de proteccion civil',
+                'visto bueno de protección civil',
+                'opinion favorable proteccion civil',
+                'opinión favorable protección civil',
+                'dictamen proteccion civil',
+                'dictamen protección civil',
+                'programa interno de proteccion civil',
+                'programa interno de protección civil',
+                'constancia proteccion civil',
+                'constancia protección civil'
+            ],
+
+            // Grupo: Uso de Suelo
+            'uso_suelo' => [
+                'uso de suelo',
+                'constancia de uso de suelo',
+                'licencia de uso de suelo',
+                'compatibilidad urbanistica',
+                'compatibilidad urbanística',
+                'zonificacion',
+                'zonificación'
+            ],
+
+            // Grupo: Alineamiento
+            'alineamiento' => [
+                'constancia de alineamiento',
+                'alineamiento y numero oficial',
+                'alineamiento y número oficial',
+                'numero oficial',
+                'número oficial'
+            ],
+
+            // Grupo: Bomberos
+            'bomberos' => [
+                'visto bueno de bomberos',
+                'opinion favorable bomberos',
+                'opinión favorable bomberos',
+                'dictamen de bomberos',
+                'constancia de bomberos'
+            ],
+
+            // Grupo: Impacto Ambiental
+            'impacto_ambiental' => [
+                'impacto ambiental',
+                'manifestacion de impacto ambiental',
+                'manifestación de impacto ambiental',
+                'mia',
+                'autorizacion ambiental',
+                'autorización ambiental',
+                'licencia ambiental'
+            ],
+
+            // Grupo: RFC
+            'rfc' => [
+                'registro federal de contribuyentes',
+                'rfc',
+                'constancia de situacion fiscal',
+                'constancia de situación fiscal',
+                'cedula de identificacion fiscal',
+                'cédula de identificación fiscal',
+                'cif'
+            ]
+        ];
+
+        // Buscar en qué grupo está cada documento
+        $grupoRequerido = null;
+        $grupoDetectado = null;
+
+        foreach ($gruposRelacionados as $nombreGrupo => $documentos) {
+            foreach ($documentos as $doc) {
+                // Verificar documento requerido
+                if (strpos($requerido, $doc) !== false || strpos($doc, $requerido) !== false) {
+                    $grupoRequerido = $nombreGrupo;
+                }
+                // Verificar documento detectado
+                if (strpos($detectado, $doc) !== false || strpos($doc, $detectado) !== false) {
+                    $grupoDetectado = $nombreGrupo;
+                }
+            }
+        }
+
+        // Si ambos pertenecen al mismo grupo, son relacionados
+        if ($grupoRequerido && $grupoDetectado && $grupoRequerido === $grupoDetectado) {
+            Log::info('✅ Documentos del mismo grupo detectados', [
+                'documento_requerido' => $documentoRequerido,
+                'documento_detectado' => $documentoDetectado,
+                'grupo' => $grupoRequerido
+            ]);
+            return true;
+        }
+
+        return false;
     }
 
     /**
