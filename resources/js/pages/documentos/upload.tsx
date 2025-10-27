@@ -71,10 +71,17 @@ interface ArchivoSubido {
         razon?: string;
         accion?: string;
     };
-    // Información extraída del documento por IA
+    // Información extraída del documento por IA (puede ser imprecisa)
     fechaExpedicion?: string;
     vigenciaDocumento?: string;
     diasRestantesVigencia?: number;
+    // Información de la base de datos (fuente de verdad)
+    metadata?: {
+        folio_documento?: string;
+        fecha_expedicion?: string;
+        vigencia_documento?: string;
+        lugar_expedicion?: string;
+    };
 }
 
 // Datos de ejemplo para Campus
@@ -329,26 +336,32 @@ const getFechaVigenciaDocumento = (documento: DocumentoRequerido) => {
         });
     }
 
-    // Si el documento tiene archivos aprobados con vigencia IA, usar esa fecha
+    // Buscar archivo aprobado que tenga información de vigencia
     const archivoAprobado = documento.archivos?.find(archivo =>
         archivo.estado === 'completado' &&
-        archivo.vigenciaDocumento
+        (archivo.metadata?.vigencia_documento || archivo.vigenciaDocumento)
     );
 
-    if (archivoAprobado && archivoAprobado.vigenciaDocumento) {
-        // Calcular días restantes en tiempo real
-        const fechaVigencia = new Date(archivoAprobado.vigenciaDocumento);
-        const hoy = new Date();
-        const diffTime = fechaVigencia.getTime() - hoy.getTime();
-        const diasRestantes = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (archivoAprobado) {
+        // 🎯 PRIORIDAD: Usar vigencia de la BD (metadata) sobre la del JSON de IA
+        const fechaVigenciaStr = archivoAprobado.metadata?.vigencia_documento || archivoAprobado.vigenciaDocumento;
 
-        console.log('✅ Usando fecha IA:', archivoAprobado.vigenciaDocumento, 'Días calculados:', diasRestantes);
+        if (fechaVigenciaStr) {
+            // Calcular días restantes en tiempo real
+            const fechaVigencia = new Date(fechaVigenciaStr);
+            const hoy = new Date();
+            const diffTime = fechaVigencia.getTime() - hoy.getTime();
+            const diasRestantes = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-        return {
-            fecha: archivoAprobado.vigenciaDocumento,
-            diasRestantes: diasRestantes,
-            esVigenciaReal: true
-        };
+            const fuente = archivoAprobado.metadata?.vigencia_documento ? 'BD (metadata)' : 'IA (JSON)';
+            console.log(`✅ Usando vigencia desde ${fuente}:`, fechaVigenciaStr, 'Días calculados:', diasRestantes);
+
+            return {
+                fecha: fechaVigenciaStr,
+                diasRestantes: diasRestantes,
+                esVigenciaReal: true
+            };
+        }
     }
 
     console.log('⚠️ No hay archivos con vigencia IA, usando fechaLimite:', documento.fechaLimite);
@@ -1673,10 +1686,17 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                             razon: data.analisis.validacion.razon,
                                             accion: data.analisis.validacion.accion
                                         } : undefined,
-                                        // Información de fechas extraída del documento
+                                        // Información de fechas extraída del documento por IA (puede ser imprecisa)
                                         fechaExpedicion: data.analisis?.documento?.fecha_expedicion,
                                         vigenciaDocumento: data.analisis?.documento?.vigencia_documento,
-                                        diasRestantesVigencia: data.analisis?.documento?.dias_restantes_vigencia
+                                        diasRestantesVigencia: data.analisis?.documento?.dias_restantes_vigencia,
+                                        // 🎯 Información de la BD (fuente de verdad - siempre priorizar sobre IA)
+                                        metadata: data.metadata ? {
+                                            folio_documento: data.metadata.folio_documento,
+                                            fecha_expedicion: data.metadata.fecha_expedicion,
+                                            vigencia_documento: data.metadata.vigencia_documento,
+                                            lugar_expedicion: data.metadata.lugar_expedicion
+                                        } : undefined
                                     };
 
                                     // Debug: Verificar qué datos de fecha estamos recibiendo
