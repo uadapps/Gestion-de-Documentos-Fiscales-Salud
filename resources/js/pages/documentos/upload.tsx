@@ -156,17 +156,17 @@ const documentosRequeridos: DocumentoRequerido[] = [
 const getEstadoColor = (estado: string) => {
     switch (estado) {
         case 'pendiente':
-            return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+            return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800';
         case 'subido':
-            return 'bg-blue-100 text-blue-800 border-blue-200';
+            return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 border-blue-200 dark:border-blue-800';
         case 'vigente':
-            return 'bg-green-100 text-green-800 border-green-200';
+            return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 border-green-200 dark:border-green-800';
         case 'caducado':
-            return 'bg-orange-100 text-orange-800 border-orange-200';
+            return 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-400 border-orange-200 dark:border-orange-800';
         case 'rechazado':
-            return 'bg-red-100 text-red-800 border-red-200';
+            return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400 border-red-200 dark:border-red-800';
         default:
-            return 'bg-gray-100 text-gray-800 border-gray-200';
+            return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700';
     }
 };
 
@@ -183,15 +183,15 @@ const getEstadoIcon = (estado: string) => {
         case 'rechazado':
             return <AlertCircle className="w-4 h-4" />;
         case 'subiendo':
-            return <Upload className="w-4 h-4 text-blue-600 animate-pulse" />;
+            return <Upload className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-pulse" />;
         case 'procesando':
-            return <Loader2 className="w-4 h-4 text-yellow-600 animate-spin" />;
+            return <Loader2 className="w-4 h-4 text-yellow-600 dark:text-yellow-400 animate-spin" />;
         case 'analizando':
-            return <Brain className="w-4 h-4 text-purple-600 animate-pulse" />;
+            return <Brain className="w-4 h-4 text-purple-600 dark:text-purple-400 animate-pulse" />;
         case 'completado':
-            return <CheckCircle className="w-4 h-4 text-green-600" />;
+            return <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />;
         case 'error':
-            return <AlertCircle className="w-4 h-4 text-red-600" />;
+            return <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400" />;
         default:
             return <FileText className="w-4 h-4" />;
     }
@@ -468,7 +468,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
     // Helper para obtener la clave correcta para selectedFiles
     const getDocumentKey = (documento: DocumentoRequerido) => {
         // Para documentos médicos con uniqueKey, usar uniqueKey
-        // Para documentos fiscales, usar id normal
+        // Para documentos legales, usar id normal
         return documento.uniqueKey || documento.id;
     };
 
@@ -488,6 +488,9 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
         // EXCEPTO si está dinámicamente caducado, entonces SÍ se puede subir para renovarlo
         const estadoNormalizado = normalizeEstado(documento.estado);
         if (estadoNormalizado === 'vigente' && !isDocumentoCaducado(documento)) return false;
+
+        // Si el documento está caducado (por estado o dinámicamente), SIEMPRE se puede subir
+        if (estadoNormalizado === 'caducado' || isDocumentoCaducado(documento)) return true;
 
         // Verificar si hay algún archivo completado exitosamente (aprobado por IA)
         const archivoAprobado = archivos.find(archivo =>
@@ -518,7 +521,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
             if (tipoDocumento === 'medicos') {
                 await refrescarDocumentosMedicos();
             } else {
-                await refrescarDocumentosFiscales();
+                await refrescarDocumentosLegales();
             }
         } catch (error) {
             console.error('Error al refrescar documentos:', error);
@@ -529,9 +532,9 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
         }
     };
 
-    const refrescarDocumentosFiscales = async () => {
+    const refrescarDocumentosLegales = async () => {
         if (!campusActual) {
-            console.log('No hay campus actual para documentos fiscales');
+            console.log('No hay campus actual para documentos legales');
             return;
         }
 
@@ -550,10 +553,10 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
 
             if (response.ok) {
                 const data = await response.json();
-                console.log('Respuesta del servidor (fiscales):', data);
+                console.log('Respuesta del servidor (legales):', data);
 
                 if (data.props?.documentosRequeridos) {
-                    console.log('Documentos fiscales recibidos:', data.props.documentosRequeridos.length);
+                    console.log('Documentos legales recibidos:', data.props.documentosRequeridos.length);
 
                     const documentosActualizados = (data.props.documentosRequeridos || []).map((doc: any) => ({
                         ...doc,
@@ -561,7 +564,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                     }));
 
                     setDocumentos(documentosActualizados);
-                    console.log('Documentos fiscales actualizados');
+                    console.log('Documentos legales actualizados');
 
                     // Actualizar documento seleccionado si corresponde
                     if (selectedDocumento) {
@@ -580,17 +583,17 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                     setDocumentosListosParaMostrar(true);
                     setCargandoDocumentosCompleto(false);
                 } else {
-                    console.log('No se recibieron documentos fiscales en la respuesta');
+                    console.log('No se recibieron documentos legales en la respuesta');
                     setCargandoDocumentosCompleto(false);
                     setDocumentosListosParaMostrar(true);
                 }
             } else {
-                console.error('Error al actualizar documentos fiscales:', response.status, response.statusText);
+                console.error('Error al actualizar documentos legales:', response.status, response.statusText);
                 setCargandoDocumentosCompleto(false);
                 setDocumentosListosParaMostrar(true);
             }
         } catch (error) {
-            console.error('Error en refrescarDocumentosFiscales:', error);
+            console.error('Error en refrescarDocumentosLegales:', error);
             setCargandoDocumentosCompleto(false);
             setDocumentosListosParaMostrar(true);
         }
@@ -945,7 +948,34 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
         }
     }, [documentos]);
 
-    // �🔄 SINCRONIZACIÓN - Refrescar cuando cambie el campus actual
+    // 🔄 DETECTAR CAMBIOS EN FECHAS DE ARCHIVOS Y ACTUALIZAR selectedDocumento
+    useEffect(() => {
+        if (selectedDocumento) {
+            // Buscar el documento actualizado en el estado documentos
+            const docActualizado = documentos.find(d =>
+                getDocumentKey(d) === getDocumentKey(selectedDocumento)
+            );
+
+            if (docActualizado) {
+                // Verificar si hay diferencias en las fechas de los archivos
+                const hayDiferencias = docActualizado.archivos?.some((archivoActualizado, index) => {
+                    const archivoSeleccionado = selectedDocumento.archivos?.[index];
+                    return archivoSeleccionado && (
+                        archivoActualizado.fechaExpedicion !== archivoSeleccionado.fechaExpedicion ||
+                        archivoActualizado.vigenciaDocumento !== archivoSeleccionado.vigenciaDocumento ||
+                        archivoActualizado.diasRestantesVigencia !== archivoSeleccionado.diasRestantesVigencia
+                    );
+                });
+
+                if (hayDiferencias) {
+                    console.log('🔄 FECHAS ACTUALIZADAS DETECTADAS - Actualizando selectedDocumento');
+                    setSelectedDocumento(docActualizado);
+                }
+            }
+        }
+    }, [documentos]); // Se ejecuta cuando cambia documentos
+
+    // 🔄 SINCRONIZACIÓN - Refrescar cuando cambie el campus actual
     useEffect(() => {
         if (campusActual && campusActual.ID_Campus) {
             console.log('=== CAMPUS ACTUAL CAMBIÓ ===');
@@ -1058,7 +1088,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                 setSelectedFiles({});
 
                 // Resetear selectores de documento
-                setTipoDocumento('fiscales');
+                setTipoDocumento('legales');
 
                 // Verificar si el campus tiene carreras médicas
                 await verificarCampusMedico(campusId);
@@ -1187,7 +1217,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
         console.log('Estado completo selectedFiles:', selectedFiles);
 
         // Encontrar el documento para obtener información de carrera
-        // Buscar por uniqueKey (documentos médicos) o por id (documentos fiscales)
+        // Buscar por uniqueKey (documentos médicos) o por id (documentos legales)
         const documento = documentosDelTipo.find(doc => getDocumentKey(doc) === documentoKey);
         if (!documento) {
             console.error('Documento no encontrado con clave:', documentoKey);
@@ -1500,7 +1530,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
     const [cargandoDocumentosMedicos, setCargandoDocumentosMedicos] = useState<boolean>(false);
 
     // Estados para el selector de tipo de documentos
-    const [tipoDocumento, setTipoDocumento] = useState<'fiscales' | 'medicos'>('fiscales');
+    const [tipoDocumento, setTipoDocumento] = useState<'legales' | 'medicos'>('legales');
 
     // Limpiar monitores al desmontar el componente
     useEffect(() => {
@@ -1530,12 +1560,12 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
             // Limpiar estado separado cuando cambia el tipo
             setDocumentosMedicosConEstado([]);
 
-            // Solo refrescar si es médicos, los fiscales ya se cargan desde el servidor inicial
+            // Solo refrescar si es médicos, los legales ya se cargan desde el servidor inicial
             if (tipoDocumento === 'medicos') {
                 // Ejecutar inmediatamente sin delay
                 refrescarDocumentosDesdeServidor();
             } else {
-                // Para fiscales, usar los documentos ya cargados y marcar como listos inmediatamente
+                // Para legales, usar los documentos ya cargados y marcar como listos inmediatamente
                 setDocumentosListosParaMostrar(true);
                 setCargandoDocumentosCompleto(false);
             }
@@ -1757,6 +1787,11 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                         // 🔄 ACTUALIZAR PANEL DESPUÉS DEL ANÁLISIS IA
                         if (data.tiene_analisis) {
                             console.log('Análisis IA completado - Actualizando panel...');
+                            console.log('📅 FECHAS RECIBIDAS DEL ANÁLISIS:', {
+                                fecha_expedicion: data.analisis?.documento?.fecha_expedicion,
+                                vigencia_documento: data.analisis?.documento?.vigencia_documento,
+                                dias_restantes: data.analisis?.documento?.dias_restantes_vigencia
+                            });
 
                             // Si el documento fue rechazado, forzar actualización inmediata
                             const documentoAfectado = documentos.find(d => getDocumentKey(d) === documentoKey);
@@ -1777,6 +1812,12 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                 setNotificationMessage(`${archivoAfectado?.nombre || 'Documento'} validado exitosamente`);
                                 setShowSuccessNotification(true);
                                 setTimeout(() => setShowSuccessNotification(false), 4000);
+
+                                // 🔄 FORZAR RE-RENDER PARA ACTUALIZAR FECHAS EN LA UI
+                                setTimeout(() => {
+                                    console.log('🔄 Forzando re-render para actualizar fechas en UI');
+                                    setSelectedDocumento(prev => prev ? {...prev} : prev);
+                                }, 500);
                             }
 
                             programarActualizacionAutomatica();
@@ -2010,8 +2051,8 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
 
     // Filtrar documentos según el tipo seleccionado
     const documentosDelTipo = (() => {
-        if (tipoDocumento === 'fiscales') {
-            // Documentos fiscales: todo excepto cartas de intención de campo clínico
+        if (tipoDocumento === 'legales') {
+            // Documentos legales: todo excepto cartas de intención de campo clínico
             return documentosFiltrados.filter(doc =>
                 !doc.concepto.toLowerCase().includes('cartas de intención de campo clínico')
             );
@@ -2085,17 +2126,17 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                 {/* Notificación de éxito flotante */}
                 {showSuccessNotification && (
                     <div className="fixed top-4 right-4 z-40 animate-in slide-in-from-right-full duration-500">
-                        <Card className="bg-green-50 border-green-200 shadow-lg">
+                        <Card className="bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 shadow-lg">
                             <CardContent className="p-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                                        <CheckCircle className="w-5 h-5 text-green-600" />
+                                    <div className="w-8 h-8 bg-green-100 dark:bg-green-900/50 rounded-full flex items-center justify-center">
+                                        <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
                                     </div>
                                     <div className="flex-1">
-                                        <p className="text-sm font-medium text-green-800">
+                                        <p className="text-sm font-medium text-green-800 dark:text-green-200">
                                             Archivo subido exitosamente
                                         </p>
-                                        <p className="text-xs text-green-600">
+                                        <p className="text-xs text-green-600 dark:text-green-400">
                                             {notificationMessage}
                                         </p>
                                     </div>
@@ -2103,7 +2144,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => setShowSuccessNotification(false)}
-                                        className="text-green-600 hover:text-green-800 hover:bg-green-100 h-6 w-6 p-0"
+                                        className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200 hover:bg-green-100 dark:hover:bg-green-900/50 h-6 w-6 p-0"
                                     >
                                         <X className="w-3 h-3" />
                                     </Button>
@@ -2115,11 +2156,11 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                 {/* Loader Overlay */}
                 {isUploading && (
                     <div
-                        className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+                        className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50"
                         onClick={(e) => e.preventDefault()} // Prevenir cierre al hacer clic fuera
                     >
                         <Card
-                            className="w-96 mx-4"
+                            className="w-96 mx-4 dark:bg-gray-800 dark:border-gray-700"
                             onClick={(e) => e.stopPropagation()} // Prevenir propagación del clic en el contenido
                         >
                             <CardContent className="p-8">
@@ -2149,21 +2190,21 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
 
                                     {/* Información del archivo */}
                                     <div className="space-y-2">
-                                        <h3 className={`text-lg font-semibold ${uploadSuccess ? 'text-green-900' : 'text-gray-900'}`}>
+                                        <h3 className={`text-lg font-semibold ${uploadSuccess ? 'text-green-900 dark:text-green-100' : 'text-gray-900 dark:text-gray-100'}`}>
                                             {uploadSuccess ? 'Documentos Subidos Exitosamente' : 'Procesando Documentos'}
                                         </h3>
                                         {currentFileName && (
-                                            <p className="text-sm text-gray-600">
+                                            <p className="text-sm text-gray-600 dark:text-gray-400">
                                                 {currentFileName}
                                             </p>
                                         )}
-                                        <p className={`text-sm font-medium ${uploadSuccess ? 'text-green-600' : 'text-blue-600'}`}>
+                                        <p className={`text-sm font-medium ${uploadSuccess ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}`}>
                                             {uploadMessage}
                                         </p>
                                         {uploadSuccess && successCount > 0 && (
                                             <div className="flex items-center justify-center gap-2 mt-3">
-                                                <CheckCircle className="w-5 h-5 text-green-600" />
-                                                <span className="text-sm font-semibold text-green-700">
+                                                <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                                                <span className="text-sm font-semibold text-green-700 dark:text-green-300">
                                                     {successCount} de {totalFiles} archivo(s) procesado(s) exitosamente
                                                 </span>
                                             </div>
@@ -2172,18 +2213,18 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
 
                                     {/* Barra de progreso */}
                                     <div className="space-y-2">
-                                        <div className="flex justify-between text-sm text-gray-600">
+                                        <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
                                             <span>Progreso</span>
                                             <span>{uploadProgress}%</span>
                                         </div>
                                         <Progress
                                             value={uploadProgress}
-                                            className={`h-3 ${uploadSuccess ? 'bg-green-100' : ''}`}
+                                            className={`h-3 ${uploadSuccess ? 'bg-green-100 dark:bg-green-900/30' : 'dark:bg-gray-700'}`}
                                         />
                                     </div>
 
                                     {/* Mensaje adicional */}
-                                    <div className="text-xs text-gray-500">
+                                    <div className="text-xs text-gray-500 dark:text-gray-400">
                                         {uploadSuccess ?
                                             'Los documentos se están procesando en segundo plano...' :
                                             'Por favor espera mientras procesamos tus documentos...'
@@ -2217,30 +2258,30 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                 {/* Modal de Documento Rechazado */}
                 {showRejectionModal && rejectionData && (
                     <div
-                        className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+                        className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4"
                         onClick={(e) => e.preventDefault()} // Prevenir cierre al hacer clic fuera
                     >
                         <Card
-                            className="w-full max-w-2xl bg-white shadow-xl"
+                            className="w-full max-w-2xl bg-white dark:bg-gray-800 shadow-xl dark:border-gray-700"
                             onClick={(e) => e.stopPropagation()} // Prevenir propagación del clic en el contenido
                         >
                             {/* Header minimalista */}
                             <CardHeader className="pb-4">
                                 <div className="flex items-start justify-between">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
-                                            <AlertCircle className="w-4 h-4 text-red-600" />
+                                        <div className="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                                            <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
                                         </div>
                                         <div>
-                                            <CardTitle className="text-lg text-gray-900">Documento Rechazado</CardTitle>
-                                            <p className="text-sm text-gray-500">Validación automática</p>
+                                            <CardTitle className="text-lg text-gray-900 dark:text-gray-100">Documento Rechazado</CardTitle>
+                                            <p className="text-sm text-gray-500 dark:text-gray-400">Validación automática</p>
                                         </div>
                                     </div>
                                     <Button
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => setShowRejectionModal(false)}
-                                        className="text-gray-400 hover:text-gray-600 h-8 w-8 p-0"
+                                        className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 h-8 w-8 p-0"
                                     >
                                         <X className="w-4 h-4" />
                                     </Button>
@@ -2250,14 +2291,14 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                             <CardContent className="space-y-4">
                                 {/* Archivo */}
                                 <div>
-                                    <p className="text-sm font-medium text-gray-700 mb-2">Archivo:</p>
-                                    <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">{rejectionData.fileName}</p>
+                                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Archivo:</p>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg">{rejectionData.fileName}</p>
                                 </div>
 
                                 {/* Motivo */}
                                 <div>
-                                    <p className="text-sm font-medium text-gray-700 mb-2">Motivo:</p>
-                                    <p className="text-sm text-gray-600 bg-red-50 p-3 rounded-lg border-l-4 border-red-400">
+                                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Motivo:</p>
+                                    <p className="text-sm text-gray-600 dark:text-gray-300 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border-l-4 border-red-400 dark:border-red-600">
                                         {rejectionData.reason}
                                     </p>
                                 </div>
@@ -2265,12 +2306,12 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                 {/* Comparación simple */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <p className="text-xs font-medium text-gray-500 mb-1">Esperado:</p>
-                                        <p className="text-sm text-gray-700 bg-blue-50 p-2 rounded text-center">{rejectionData.expectedType}</p>
+                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Esperado:</p>
+                                        <p className="text-sm text-gray-700 dark:text-gray-300 bg-blue-50 dark:bg-blue-900/20 p-2 rounded text-center">{rejectionData.expectedType}</p>
                                     </div>
                                     <div>
-                                        <p className="text-xs font-medium text-gray-500 mb-1">Detectado:</p>
-                                        <p className="text-sm text-gray-700 bg-orange-50 p-2 rounded text-center">{rejectionData.detectedType}</p>
+                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Detectado:</p>
+                                        <p className="text-sm text-gray-700 dark:text-gray-300 bg-orange-50 dark:bg-orange-900/20 p-2 rounded text-center">{rejectionData.detectedType}</p>
                                     </div>
                                 </div>
 
@@ -2341,26 +2382,26 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                 <div className="mb-6">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h1 className="text-3xl font-bold tracking-tight mb-2">
+                            <h1 className="text-3xl font-bold tracking-tight mb-2 dark:text-gray-100">
                                 Subir Documentos
                             </h1>
-                            <p className="text-muted-foreground">
+                            <p className="text-muted-foreground dark:text-gray-400">
                                 Selecciona un campus y un documento de la lista para subir los archivos requeridos
                             </p>
                         </div>
                         {/* Indicador de análisis activos */}
                         {monitoreosActivos.size > 0 && (
-                            <div className="flex items-center gap-3 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="flex items-center gap-3 px-3 py-2 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg">
                                 <div className="flex items-center gap-2">
-                                    <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
-                                    <span className="text-sm text-blue-700">
+                                    <Loader2 className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-spin" />
+                                    <span className="text-sm text-blue-700 dark:text-blue-300">
                                         {monitoreosActivos.size} análisis en curso
                                     </span>
                                 </div>
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-6 px-2 text-xs text-blue-700 hover:text-blue-900 hover:bg-blue-100"
+                                    className="h-6 px-2 text-xs text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 hover:bg-blue-100 dark:hover:bg-blue-900/50"
                                     onClick={detenerTodosLosMonitores}
                                 >
                                     <X className="w-3 h-3 mr-1" />
@@ -2393,7 +2434,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                 <div className="flex items-center gap-2">
                                     <FileText className="w-4 h-4 text-muted-foreground" />
                                     <div>
-                                        <p className="text-sm font-medium">Total {tipoDocumento === 'medicos' ? 'Médicos' : 'Fiscales'}</p>
+                                        <p className="text-sm font-medium">Total {tipoDocumento === 'medicos' ? 'Médicos' : 'Legales'}</p>
                                         <p className="text-2xl font-bold">{documentosDelTipo.length}</p>
                                     </div>
                                 </div>
@@ -2490,7 +2531,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                                     <p className="text-sm text-gray-500">
                                                         {tipoDocumento === 'medicos'
                                                             ? 'Obteniendo estados de documentos médicos...'
-                                                            : 'Obteniendo documentos fiscales...'}
+                                                            : 'Obteniendo documentos legales...'}
                                                     </p>
                                                 </div>
                                             </div>
@@ -2501,12 +2542,12 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                     <Card className="h-fit">
                                         <CardContent className="flex items-center justify-center h-96">
                                             <div className="text-center space-y-4">
-                                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
-                                                    <FileText className="w-8 h-8 text-gray-400" />
+                                                <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto">
+                                                    <FileText className="w-8 h-8 text-gray-400 dark:text-gray-500" />
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <p className="text-lg font-medium text-gray-700">Preparando Información</p>
-                                                    <p className="text-sm text-gray-500">
+                                                    <p className="text-lg font-medium text-gray-700 dark:text-gray-300">Preparando Información</p>
+                                                    <p className="text-sm text-gray-500 dark:text-gray-400">
                                                         Por favor espera mientras cargamos la información completa...
                                                     </p>
                                                 </div>
@@ -2557,7 +2598,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                                     <Label className="text-sm font-medium text-muted-foreground">Tipo:</Label>
                                                     <Select
                                                         value={tipoDocumento}
-                                                        onValueChange={(value: 'fiscales' | 'medicos') => {
+                                                        onValueChange={(value: 'legales' | 'medicos') => {
                                                             setTipoDocumento(value);
                                                         }}
                                                     >
@@ -2565,7 +2606,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                                             <SelectValue />
                                                         </SelectTrigger>
                                                         <SelectContent>
-                                                            <SelectItem value="fiscales">Fiscales</SelectItem>
+                                                            <SelectItem value="legales">Legales</SelectItem>
                                                             {campusTieneCarrerasMedicas && (
                                                                 <SelectItem value="medicos">Médicos</SelectItem>
                                                             )}
@@ -2689,12 +2730,12 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                 {/* Columna derecha: Detalles y subida del documento seleccionado */}
                                 <div className="lg:col-span-2">
                                     {selectedDocumento ? (
-                                        <Card className="h-fit">
+                                        <Card className="h-fit dark:bg-gray-800 dark:border-gray-700">
                                             <CardHeader>
                                                 <div className="flex items-start justify-between">
                                                     <div>
-                                                        <CardTitle className="text-xl">{selectedDocumento.concepto}</CardTitle>
-                                                        <p className="text-muted-foreground mt-1">{selectedDocumento.descripcion}</p>
+                                                        <CardTitle className="text-xl dark:text-gray-100">{selectedDocumento.concepto}</CardTitle>
+                                                        <p className="text-muted-foreground dark:text-gray-400 mt-1">{selectedDocumento.descripcion}</p>
                                                     </div>
                                                     <Badge className={getEstadoColorDinamico(selectedDocumento)}>
                                                         <div className="flex items-center gap-1">
@@ -2705,7 +2746,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                                 </div>
 
                                                 <div className="flex items-center gap-4 text-sm pt-2">
-                                                    <div className="flex items-center gap-1 text-muted-foreground">
+                                                    <div className="flex items-center gap-1 text-muted-foreground dark:text-gray-400">
                                                         <Calendar className="w-4 h-4" />
                                                         <span>Vence: {formatDate(getFechaVigenciaDocumento(selectedDocumento).fecha)}</span>
                                                     </div>
@@ -2716,13 +2757,13 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                                     )}
                                                     {/* Badge para documento caducado */}
                                                     {isDocumentoCaducado(selectedDocumento) && (
-                                                        <Badge className="text-xs bg-orange-100 text-orange-800 border-orange-300">
+                                                        <Badge className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-400 border-orange-300 dark:border-orange-800">
                                                             CADUCADO
                                                         </Badge>
                                                     )}
                                                     {/* Mostrar carrera específica para documentos médicos */}
                                                     {selectedDocumento?.carreraNombre && (
-                                                        <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800">
+                                                        <Badge variant="secondary" className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400">
                                                             {selectedDocumento.carreraNombre}
                                                         </Badge>
                                                     )}
@@ -2733,49 +2774,64 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                                 {/* Archivos ya subidos */}
                                                 {getArchivosSeguro(selectedDocumento).length > 0 && (
                                                     <div>
-                                                        <h4 className="font-semibold mb-3">
+                                                        <h4 className="font-semibold mb-3 dark:text-gray-200">
                                                             Archivos subidos ({getArchivosSeguro(selectedDocumento).length})
                                                         </h4>
                                                         <div className="space-y-2">
-                                                            {getArchivosSeguro(selectedDocumento).map((archivo) => (
-                                                                <div
-                                                                    key={archivo.id}
-                                                                    className={`p-3 border rounded-lg transition-all duration-300 ${recentlyUploadedFiles.has(archivo.id)
-                                                                            ? 'border-green-400 bg-green-50 shadow-lg ring-2 ring-green-200 ring-opacity-50 animate-pulse'
-                                                                            : archivo.estado === 'subiendo' || archivo.estado === 'procesando' || archivo.estado === 'analizando'
-                                                                                ? 'border-blue-300 bg-blue-50 shadow-lg'
-                                                                                : archivo.estado === 'completado'
-                                                                                    ? (selectedDocumento?.estado === 'rechazado' || (archivo.validacionIA && !archivo.validacionIA.coincide))
-                                                                                        ? 'border-red-200 bg-red-50'  // Rojo si está rechazado
-                                                                                        : 'border-green-200 bg-green-50'  // Verde si está aprobado
-                                                                                    : archivo.estado === 'rechazado'
-                                                                                        ? 'border-red-300 bg-red-50 shadow-lg'
-                                                                                        : archivo.estado === 'error'
-                                                                                            ? 'border-red-200 bg-red-50'
-                                                                                            : 'border-gray-200'
-                                                                        }`}
-                                                                >
+                                                            {getArchivosSeguro(selectedDocumento).map((archivo) => {
+                                                                // Determinar el color del contenedor basado en el estado real del documento
+                                                                const estaRechazado = selectedDocumento?.estado === 'rechazado' ||
+                                                                    (archivo.validacionIA && !archivo.validacionIA.coincide);
+                                                                const estaCaducado = isDocumentoCaducado(selectedDocumento);
+
+                                                                let containerClass = '';
+
+                                                                if (recentlyUploadedFiles.has(archivo.id)) {
+                                                                    containerClass = 'border-green-400 dark:border-green-600 bg-green-50 dark:bg-green-900/20 shadow-lg ring-2 ring-green-200 dark:ring-green-800 ring-opacity-50 animate-pulse';
+                                                                } else if (archivo.estado === 'subiendo' || archivo.estado === 'procesando' || archivo.estado === 'analizando') {
+                                                                    containerClass = 'border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 shadow-lg';
+                                                                } else if (archivo.estado === 'completado') {
+                                                                    if (estaRechazado) {
+                                                                        containerClass = 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20';  // Rojo si está rechazado
+                                                                    } else if (estaCaducado) {
+                                                                        containerClass = 'border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20';  // Naranja si está caducado
+                                                                    } else {
+                                                                        containerClass = 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20';  // Verde si está aprobado y vigente
+                                                                    }
+                                                                } else if (archivo.estado === 'rechazado') {
+                                                                    containerClass = 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20 shadow-lg';
+                                                                } else if (archivo.estado === 'error') {
+                                                                    containerClass = 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20';
+                                                                } else {
+                                                                    containerClass = 'border-gray-200 dark:border-gray-700 dark:bg-gray-800/50';
+                                                                }
+
+                                                                return (
+                                                                    <div
+                                                                        key={archivo.id}
+                                                                        className={`p-3 border rounded-lg transition-all duration-300 ${containerClass}`}
+                                                                    >
                                                                     <div className="flex items-center justify-between">
                                                                         <div className="flex items-center gap-3 flex-1">
                                                                             <div className="flex-1">
-                                                                                <p className="text-sm font-medium">{archivo.nombre}</p>
-                                                                                <p className="text-xs text-muted-foreground">
+                                                                                <p className="text-sm font-medium dark:text-gray-200">{archivo.nombre}</p>
+                                                                                <p className="text-xs text-muted-foreground dark:text-gray-400">
                                                                                     {formatDocumentInfo(archivo)}
                                                                                 </p>                                                                    {/* Progreso visible para estados activos */}
                                                                                 {archivo.estado === 'subiendo' && (
                                                                                     <div className="mt-2">
                                                                                         <div className="flex items-center gap-2 mb-2">
-                                                                                            <Upload className="w-4 h-4 text-blue-600 animate-bounce" />
-                                                                                            <span className="text-sm font-medium text-blue-700">
+                                                                                            <Upload className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-bounce" />
+                                                                                            <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
                                                                                                 {archivo.mensaje || 'Subiendo archivo...'}
                                                                                             </span>
-                                                                                            <span className="text-xs text-blue-500 font-bold">
+                                                                                            <span className="text-xs text-blue-500 dark:text-blue-400 font-bold">
                                                                                                 {archivo.progreso}%
                                                                                             </span>
                                                                                         </div>
                                                                                         <Progress
                                                                                             value={archivo.progreso}
-                                                                                            className="h-3 bg-blue-100"
+                                                                                            className="h-3 bg-blue-100 dark:bg-blue-900/30"
                                                                                         />
                                                                                     </div>
                                                                                 )}
@@ -2783,8 +2839,8 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                                                                 {archivo.estado === 'procesando' && (
                                                                                     <div className="mt-2">
                                                                                         <div className="flex items-center gap-2">
-                                                                                            <Loader2 className="w-4 h-4 text-yellow-600 animate-spin" />
-                                                                                            <span className="text-sm font-medium text-yellow-700">
+                                                                                            <Loader2 className="w-4 h-4 text-yellow-600 dark:text-yellow-400 animate-spin" />
+                                                                                            <span className="text-sm font-medium text-yellow-700 dark:text-yellow-300">
                                                                                                 {archivo.mensaje || 'Procesando documento...'}
                                                                                             </span>
                                                                                         </div>
@@ -2794,13 +2850,13 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                                                                 {archivo.estado === 'analizando' && (
                                                                                     <div className="mt-2">
                                                                                         <div className="flex items-center gap-2">
-                                                                                            <Brain className="w-4 h-4 text-purple-600 animate-pulse" />
-                                                                                            <span className="text-sm font-medium text-purple-700">
+                                                                                            <Brain className="w-4 h-4 text-purple-600 dark:text-purple-400 animate-pulse" />
+                                                                                            <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
                                                                                                 {archivo.mensaje || 'Analizando con IA...'}
                                                                                             </span>
                                                                                         </div>
-                                                                                        <div className="mt-1 text-xs text-purple-600">
-                                                                                            <div className="mt-1 text-xs text-purple-600">
+                                                                                        <div className="mt-1 text-xs text-purple-600 dark:text-purple-400">
+                                                                                            <div className="mt-1 text-xs text-purple-600 dark:text-purple-400">
                                                                                                 procesando el documento...
                                                                                             </div>
                                                                                         </div>
@@ -2809,52 +2865,74 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
 
                                                                                 {archivo.estado === 'completado' && (
                                                                                     <>
-                                                                                        {/* Solo mostrar como vigente si REALMENTE está aprobado Y el documento no está rechazado */}
-                                                                                        {(selectedDocumento?.estado !== 'rechazado' && (!archivo.validacionIA || archivo.validacionIA.coincide)) ? (
-                                                                                            <div className="flex items-center gap-2 mt-1">
-                                                                                                <CheckCircle className="w-4 h-4 text-green-600" />
-                                                                                                <span className="text-sm font-medium text-green-700">
-                                                                                                    Documento Vigente
-                                                                                                </span>
-                                                                                                {archivo.validacionIA && (
-                                                                                                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                                                                                                        Aprobado ({archivo.validacionIA.porcentaje}%)
-                                                                                                    </span>
-                                                                                                )}
-                                                                                            </div>
-                                                                                        ) : (
-                                                                                            /* Si el documento está rechazado O la validación IA falló, mostrar como rechazado */
-                                                                                            <div className="flex items-center gap-2 mt-1">
-                                                                                                <AlertCircle className="w-4 h-4 text-red-600" />
-                                                                                                <span className="text-sm font-medium text-red-700">
-                                                                                                    Documento Rechazado
-                                                                                                </span>
-                                                                                                {archivo.validacionIA && (
-                                                                                                    <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">
-                                                                                                        No aprobado ({archivo.validacionIA.porcentaje}%)
-                                                                                                    </span>
-                                                                                                )}
-                                                                                            </div>
-                                                                                        )}
+                                                                                        {/* Determinar el estado real del documento considerando caducidad */}
+                                                                                        {(() => {
+                                                                                            const estaRechazado = selectedDocumento?.estado === 'rechazado' ||
+                                                                                                (archivo.validacionIA && !archivo.validacionIA.coincide);
+                                                                                            const estaCaducado = isDocumentoCaducado(selectedDocumento);
+                                                                                            const estaAprobado = !estaRechazado && !estaCaducado;
+
+                                                                                            if (estaRechazado) {
+                                                                                                return (
+                                                                                                    <div className="flex items-center gap-2 mt-1">
+                                                                                                        <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
+                                                                                                        <span className="text-sm font-medium text-red-700 dark:text-red-300">
+                                                                                                            Documento Rechazado
+                                                                                                        </span>
+                                                                                                        {archivo.validacionIA && (
+                                                                                                            <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400 px-2 py-1 rounded">
+                                                                                                                No aprobado ({archivo.validacionIA.porcentaje}%)
+                                                                                                            </span>
+                                                                                                        )}
+                                                                                                    </div>
+                                                                                                );
+                                                                                            } else if (estaCaducado) {
+                                                                                                return (
+                                                                                                    <div className="flex items-center gap-2 mt-1">
+                                                                                                        <Calendar className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                                                                                                        <span className="text-sm font-medium text-orange-700 dark:text-orange-300">
+                                                                                                            Documento Caducado
+                                                                                                        </span>
+                                                                                                        <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-400 px-2 py-1 rounded">
+                                                                                                            Vencido - Requiere Renovación
+                                                                                                        </span>
+                                                                                                    </div>
+                                                                                                );
+                                                                                            } else {
+                                                                                                return (
+                                                                                                    <div className="flex items-center gap-2 mt-1">
+                                                                                                        <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+                                                                                                        <span className="text-sm font-medium text-green-700 dark:text-green-300">
+                                                                                                            Documento Vigente
+                                                                                                        </span>
+                                                                                                        {archivo.validacionIA && (
+                                                                                                            <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 px-2 py-1 rounded">
+                                                                                                                Aprobado ({archivo.validacionIA.porcentaje}%)
+                                                                                                            </span>
+                                                                                                        )}
+                                                                                                    </div>
+                                                                                                );
+                                                                                            }
+                                                                                        })()}
                                                                                         {/* 🖼️ PREVIEW DEL PDF MEJORADO Y GRANDE */}
-                                                                                        <div className="mt-4 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+                                                                                        <div className="mt-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg overflow-hidden">
                                                                                             {/* Header del preview */}
-                                                                                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 border-b border-gray-200">
+                                                                                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                                                                                                 <div className="flex items-center justify-between">
                                                                                                     <div className="flex items-center gap-3">
-                                                                                                        <div className="p-2 bg-blue-100 rounded-lg">
-                                                                                                            <FileText className="w-5 h-5 text-blue-600" />
+                                                                                                        <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
+                                                                                                            <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                                                                                                         </div>
                                                                                                         <div>
-                                                                                                            <h3 className="font-semibold text-gray-800">Vista Previa del Documento</h3>
-                                                                                                            <p className="text-xs text-gray-500">{archivo.nombre}</p>
+                                                                                                            <h3 className="font-semibold text-gray-800 dark:text-gray-200">Vista Previa del Documento</h3>
+                                                                                                            <p className="text-xs text-gray-500 dark:text-gray-400">{archivo.nombre}</p>
                                                                                                         </div>
                                                                                                     </div>
                                                                                                     <Button
                                                                                                         variant="outline"
                                                                                                         size="sm"
                                                                                                         onClick={() => window.open(`/documentos/file/${archivo.file_hash_sha256}`, '_blank')}
-                                                                                                        className="gap-2 bg-white hover:bg-gray-50 shadow-sm"
+                                                                                                        className="gap-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm"
                                                                                                     >
                                                                                                         <Eye className="w-4 h-4" />
                                                                                                         Abrir Completo
@@ -2863,10 +2941,10 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                                                                             </div>
 
                                                                                             {/* Contenedor del iframe mejorado y más grande */}
-                                                                                            <div className="relative bg-gray-50">
+                                                                                            <div className="relative bg-gray-50 dark:bg-gray-900">
                                                                                                 <iframe
                                                                                                     src={`/documentos/archivo/${archivo.id}#toolbar=1&navpanes=0&scrollbar=1&view=FitH&zoom=125`}
-                                                                                                    className="w-full h-[700px] bg-white"
+                                                                                                    className="w-full h-[700px] bg-white dark:bg-gray-900"
                                                                                                     title={`Preview de ${archivo.nombre}`}
                                                                                                     style={{
                                                                                                         backgroundColor: '#ffffff',
@@ -2882,7 +2960,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
 
                                                                                                 {/* Overlay informativo mejorado */}
                                                                                                 <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 hover:opacity-100 transition-all duration-300 pointer-events-none">
-                                                                                                    <div className="text-center text-white bg-gray-900 bg-opacity-80 p-6 rounded-lg backdrop-blur-sm">
+                                                                                                    <div className="text-center text-white bg-gray-900 dark:bg-gray-800 bg-opacity-80 p-6 rounded-lg backdrop-blur-sm">
                                                                                                         <FileText className="w-16 h-16 mx-auto mb-4 text-blue-400" />
                                                                                                         <p className="text-lg font-medium mb-2">Documento PDF Validado</p>
                                                                                                         <p className="text-sm text-gray-300 mb-4">Haz clic para abrir en una nueva ventana</p>
@@ -2899,8 +2977,8 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                                                                             </div>
 
                                                                                             {/* Footer con información del documento */}
-                                                                                            <div className="bg-gray-50 px-4 py-3 border-t border-gray-200">
-                                                                                                <div className="flex items-center justify-between text-sm text-gray-600">
+                                                                                            <div className="bg-gray-50 dark:bg-gray-800 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+                                                                                                <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
                                                                                                     <div className="flex items-center gap-4 text-xs">
                                                                                                         <span>
                                                                                                             {formatDocumentInfo(archivo)}
@@ -2965,7 +3043,8 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
 
                                                                     </div>
                                                                 </div>
-                                                            ))}
+                                                            );
+                                                            })}
                                                         </div>
                                                     </div>
                                                 )}
@@ -2973,20 +3052,20 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                                 {/* Archivos seleccionados para subir */}
                                                 {(selectedFiles[getDocumentKey(selectedDocumento)] || []).length > 0 && (
                                                     <div>
-                                                        <h4 className="font-semibold mb-3">
+                                                        <h4 className="font-semibold mb-3 dark:text-gray-200">
                                                             Archivos seleccionados ({(selectedFiles[getDocumentKey(selectedDocumento)] || []).length})
                                                         </h4>
                                                         <div className="space-y-2">
                                                             {(selectedFiles[getDocumentKey(selectedDocumento)] || []).map((file, index) => (
                                                                 <div
                                                                     key={index}
-                                                                    className="flex items-center justify-between p-3 bg-primary/5 rounded-lg border border-primary/20"
+                                                                    className="flex items-center justify-between p-3 bg-primary/5 dark:bg-primary/10 rounded-lg border border-primary/20 dark:border-primary/30"
                                                                 >
                                                                     <div className="flex items-center gap-3">
                                                                         <FileText className="w-5 h-5 text-primary" />
                                                                         <div>
-                                                                            <p className="text-sm font-medium">{file.name}</p>
-                                                                            <p className="text-xs text-muted-foreground">
+                                                                            <p className="text-sm font-medium dark:text-gray-200">{file.name}</p>
+                                                                            <p className="text-xs text-muted-foreground dark:text-gray-400">
                                                                                 {formatFileSize(file.size)}
                                                                             </p>
                                                                         </div>
@@ -2995,7 +3074,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                                                         variant="ghost"
                                                                         size="sm"
                                                                         onClick={() => removeSelectedFile(getDocumentKey(selectedDocumento), index)}
-                                                                        className="text-destructive hover:text-destructive"
+                                                                        className="text-destructive hover:text-destructive dark:text-red-400 dark:hover:text-red-300"
                                                                     >
                                                                         <X className="w-4 h-4" />
                                                                     </Button>
@@ -3026,8 +3105,8 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                                         className={`
                                                 border-2 border-dashed rounded-lg p-8 text-center transition-colors
                                                 ${dragOver === getDocumentKey(selectedDocumento)
-                                                                ? 'border-primary bg-primary/5'
-                                                                : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+                                                                ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                                                                : 'border-muted-foreground/25 hover:border-muted-foreground/50 dark:border-gray-700 dark:hover:border-gray-600'
                                                             }
                                             `}
                                                         onDragOver={(e) => handleDragOver(e, getDocumentKey(selectedDocumento))}
@@ -3036,12 +3115,12 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                                     >
                                                         <Upload className={`
                                                 w-12 h-12 mx-auto mb-4
-                                                ${dragOver === getDocumentKey(selectedDocumento) ? 'text-primary' : 'text-muted-foreground'}
+                                                ${dragOver === getDocumentKey(selectedDocumento) ? 'text-primary' : 'text-muted-foreground dark:text-gray-400'}
                                             `} />
-                                                        <h3 className="font-semibold mb-2">
+                                                        <h3 className="font-semibold mb-2 dark:text-gray-200">
                                                             Arrastra archivos aquí
                                                         </h3>
-                                                        <p className="text-muted-foreground mb-4 text-sm">
+                                                        <p className="text-muted-foreground dark:text-gray-400 mb-4 text-sm">
                                                             o haz clic para seleccionar archivos
                                                         </p>
                                                         <input
@@ -3062,24 +3141,24 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                                             <Plus className="w-4 h-4 mr-2" />
                                                             Seleccionar Archivos
                                                         </Button>
-                                                        <p className="text-xs text-muted-foreground mt-3">
+                                                        <p className="text-xs text-muted-foreground dark:text-gray-400 mt-3">
                                                             Formatos: PDF, DOC, DOCX, JPG, PNG (máx. 10MB)
                                                         </p>
                                                     </div>
                                                 ) : (
-                                                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center bg-gray-50">
+                                                    <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 text-center bg-gray-50 dark:bg-gray-800/50">
                                                         <div className="flex items-center justify-center mb-4">
                                                             {(normalizeEstado(selectedDocumento.estado) === 'vigente' && !isDocumentoCaducado(selectedDocumento)) ? (
-                                                                <CheckCircle className="w-12 h-12 text-green-600" />
+                                                                <CheckCircle className="w-12 h-12 text-green-600 dark:text-green-400" />
                                                             ) : normalizeEstado(selectedDocumento.estado) === 'rechazado' ? (
-                                                                <AlertCircle className="w-12 h-12 text-red-600" />
+                                                                <AlertCircle className="w-12 h-12 text-red-600 dark:text-red-400" />
                                                             ) : (normalizeEstado(selectedDocumento.estado) === 'caducado' || isDocumentoCaducado(selectedDocumento)) ? (
-                                                                <Calendar className="w-12 h-12 text-orange-600" />
+                                                                <Calendar className="w-12 h-12 text-orange-600 dark:text-orange-400" />
                                                             ) : (
                                                                 <AlertCircle className="w-12 h-12 text-gray-400" />
                                                             )}
                                                         </div>
-                                                        <h3 className="font-semibold mb-2 text-gray-700">
+                                                        <h3 className="font-semibold mb-2 text-gray-700 dark:text-gray-200">
                                                             {(normalizeEstado(selectedDocumento.estado) === 'vigente' && !isDocumentoCaducado(selectedDocumento))
                                                                 ? 'Documento Aprobado'
                                                                 : normalizeEstado(selectedDocumento.estado) === 'rechazado'
@@ -3089,35 +3168,35 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                                                         : 'Subida Bloqueada'
                                                             }
                                                         </h3>
-                                                        <p className="text-gray-600 text-sm mb-4">
+                                                        <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
                                                             {getMensajeEstado(selectedDocumento)}
                                                         </p>
                                                         {(normalizeEstado(selectedDocumento.estado) === 'vigente' && !isDocumentoCaducado(selectedDocumento)) && (
-                                                            <div className="bg-green-100 border border-green-200 rounded-lg p-3 text-green-800">
+                                                            <div className="bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-3 text-green-800 dark:text-green-400">
                                                                 <p className="text-sm font-medium">
                                                                     Este documento ha sido validado y aprobado.
                                                                 </p>
-                                                                <p className="text-xs mt-1">
+                                                                <p className="text-xs mt-1 text-green-700 dark:text-green-400">
                                                                     No se pueden realizar más cambios a menos que sea rechazado por un administrador.
                                                                 </p>
                                                             </div>
                                                         )}
                                                         {normalizeEstado(selectedDocumento.estado) === 'rechazado' && (
-                                                            <div className="bg-red-100 border border-red-200 rounded-lg p-3 text-red-800">
+                                                            <div className="bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3 text-red-800 dark:text-red-400">
                                                                 <p className="text-sm font-medium">
                                                                     Este documento fue rechazado por un administrador.
                                                                 </p>
-                                                                <p className="text-xs mt-1">
+                                                                <p className="text-xs mt-1 text-red-700 dark:text-red-400">
                                                                     Por favor, revise los comentarios y suba una nueva versión.
                                                                 </p>
                                                             </div>
                                                         )}
                                                         {(normalizeEstado(selectedDocumento.estado) === 'caducado' || isDocumentoCaducado(selectedDocumento)) && (
-                                                            <div className="bg-orange-100 border border-orange-200 rounded-lg p-3 text-orange-800">
+                                                            <div className="bg-orange-100 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-800 rounded-lg p-3 text-orange-800 dark:text-orange-400">
                                                                 <p className="text-sm font-medium">
                                                                     Este documento ha caducado por vencimiento de fecha.
                                                                 </p>
-                                                                <p className="text-xs mt-1">
+                                                                <p className="text-xs mt-1 text-orange-700 dark:text-orange-400">
                                                                     Puede subir una nueva versión actualizada del documento.
                                                                 </p>
                                                             </div>
@@ -3127,12 +3206,12 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                             </CardContent>
                                         </Card>
                                     ) : (
-                                        <Card className="h-full">
+                                        <Card className="h-full dark:bg-gray-800 dark:border-gray-700">
                                             <CardContent className="flex items-center justify-center h-full">
                                                 <div className="text-center">
-                                                    <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                                                    <h3 className="font-semibold mb-2">Selecciona un documento</h3>
-                                                    <p className="text-muted-foreground text-sm">
+                                                    <FileText className="w-12 h-12 text-muted-foreground dark:text-gray-400 mx-auto mb-4" />
+                                                    <h3 className="font-semibold mb-2 dark:text-gray-200">Selecciona un documento</h3>
+                                                    <p className="text-muted-foreground dark:text-gray-400 text-sm">
                                                         Elige un documento de la lista para comenzar a subir archivos
                                                     </p>
                                                 </div>

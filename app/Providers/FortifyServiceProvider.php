@@ -134,6 +134,21 @@ class FortifyServiceProvider extends ServiceProvider
                     return null;
                 }
 
+                // ✅ VALIDACIÓN ESPECIAL: Si tiene rol 16 (Supervisor), debe ser usuario "rector"
+                $tieneRol16 = in_array('16', $rolesUsuario);
+
+                if ($tieneRol16) {
+                    $usuarioNormalizado = strtolower(trim($user->Usuario));
+                    if ($usuarioNormalizado !== 'rector') {
+                        Log::info('Usuario con rol 16 pero no es rector - negando acceso:', [
+                            'usuario' => $user->Usuario,
+                            'roles' => $rolesUsuario,
+                        ]);
+                        // Retornar null para que falle como credenciales incorrectas
+                        return null;
+                    }
+                }
+
                 Log::info('Usuario autenticado exitosamente:', [
                     'usuario' => $user->Usuario,
                     'roles' => $rolesUsuario,

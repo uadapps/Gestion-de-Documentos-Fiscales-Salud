@@ -290,7 +290,7 @@ export default function SupervisionDashboard({
                 total + (campus.total_caducados || 0), 0);
 
             const totalRechazados = data.estadisticas_por_campus.reduce((total: number, campus: any) =>
-                total + ((campus.fiscales?.rechazados || 0) + (campus.medicos?.rechazados || 0)), 0);
+                total + ((campus.legales?.rechazados || 0) + (campus.medicos?.rechazados || 0)), 0);
 
             // Calcular pendientes correctamente: Total - Vigentes - Caducados - Rechazados
             const totalPendientes = Math.max(0, totalDocumentos - totalAprobados - totalCaducados - totalRechazados);
@@ -306,13 +306,13 @@ export default function SupervisionDashboard({
         } else {
             // Estructura anterior (fallback)
             const estadisticas = data.estadisticas || {};
-            const fiscales = data.estadisticas_fiscales || {};
+            const legales = data.estadisticas_legales || data.estadisticas_fiscales || {};
             const medicos = data.estadisticas_medicos || {};
 
-            const totalDocumentos = (fiscales.total_documentos || fiscales.total || 0) + (medicos.total_documentos || medicos.total || 0);
-            const totalAprobados = (fiscales.aprobados || 0) + (medicos.aprobados || 0);
-            const totalCaducados = (fiscales.caducados || 0) + (medicos.caducados || 0);
-            const totalRechazados = (fiscales.rechazados || 0) + (medicos.rechazados || 0);
+            const totalDocumentos = (legales.total_documentos || legales.total || 0) + (medicos.total_documentos || medicos.total || 0);
+            const totalAprobados = (legales.aprobados || 0) + (medicos.aprobados || 0);
+            const totalCaducados = (legales.caducados || 0) + (medicos.caducados || 0);
+            const totalRechazados = (legales.rechazados || 0) + (medicos.rechazados || 0);
 
             // Calcular pendientes correctamente: Total - Vigentes - Caducados - Rechazados
             const totalPendientes = Math.max(0, totalDocumentos - totalAprobados - totalCaducados - totalRechazados);
@@ -398,7 +398,8 @@ export default function SupervisionDashboard({
 
     // Memorizar los datos del semáforo para evitar re-procesamiento
     const datosSemaforoMemoizados = useMemo(() => {
-        return [...datosSemaforo]; // Crear una copia nueva
+        // Ordenar alfabéticamente por nombre de campus
+        return [...datosSemaforo].sort((a, b) => a.campus.localeCompare(b.campus));
     }, [datosSemaforo.length]);
 
     return (
@@ -414,11 +415,11 @@ export default function SupervisionDashboard({
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight mb-2">
+                        <h1 className="text-3xl font-bold tracking-tight mb-2 text-gray-900 dark:text-gray-100">
                             Dashboard de Supervisión
                         </h1>
                         <p className="text-muted-foreground">
-                            Monitoreo en tiempo real del estado de documentos  por campus
+                            Monitoreo en tiempo real del estado de documentos por campus
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -429,7 +430,7 @@ export default function SupervisionDashboard({
                             </div>
                         )}
                         {error && (
-                            <div className="flex items-center gap-2 text-sm text-red-600">
+                            <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
                                 <AlertTriangle className="w-4 h-4" />
                                 {error}
                             </div>
@@ -455,7 +456,7 @@ export default function SupervisionDashboard({
                             <Card>
                                 <CardContent className="p-4">
                                     <div className="flex items-center gap-2">
-                                        <FileText className="w-4 h-4 text-blue-600" />
+                                        <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                                         <div>
                                             <p className="text-sm font-medium">Total Documentos</p>
                                             <p className="text-2xl font-bold">{estadisticasGenerales.totalDocumentos.toLocaleString()}</p>
@@ -514,7 +515,7 @@ export default function SupervisionDashboard({
                             <Card>
                                 <CardContent className="p-4">
                                     <div className="flex items-center gap-2">
-                                        <Building className="w-4 h-4 text-indigo-600" />
+                                        <Building className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                                         <div>
                                             <p className="text-sm font-medium">Campus Activos</p>
                                             <p className="text-2xl font-bold">{datosSemaforoMemoizados.length}</p>
