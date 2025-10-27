@@ -1392,6 +1392,28 @@ Devuelve **únicamente** un JSON con esta estructura exacta:
                 'cedula de identificacion fiscal',
                 'cédula de identificación fiscal',
                 'cif'
+            ],
+
+            // Grupo: Documentos Académicos / Campos Clínicos
+            'academico_clinico' => [
+                'carta de intencion',
+                'carta de intención',
+                'carta de intencion de campo clinico',
+                'carta de intención de campo clínico',
+                'campo clinico',
+                'campo clínico',
+                'opinion tecnica',
+                'opinión técnica',
+                'opinion academica',
+                'opinión académica',
+                'opinion tecnica-academica',
+                'opinión técnica-académica',
+                'convenio campo clinico',
+                'convenio campo clínico',
+                'autorizacion campo clinico',
+                'autorización campo clínico',
+                'carta compromiso campo clinico',
+                'carta compromiso campo clínico'
             ]
         ];
 
@@ -4308,6 +4330,7 @@ Responde SOLO con el JSON, sin explicaciones adicionales.";
             // 🏛️ DOCUMENTOS EXENTOS DE VALIDACIÓN DE CIUDAD
             // Estos documentos pueden ser firmados/expedidos en cualquier ciudad (notarías, oficinas centrales, etc.)
             $documentosExentos = [
+                // Documentos notariales/fiscales
                 'uso legal del inmueble',
                 'escritura publica',
                 'escritura pública',
@@ -4319,7 +4342,26 @@ Responde SOLO con el JSON, sin explicaciones adicionales.";
                 'constancia de situacion fiscal',
                 'constancia de situación fiscal',
                 'cedula de identificacion fiscal',
-                'cédula de identificación fiscal'
+                'cédula de identificación fiscal',
+
+                // Documentos académicos/centralizados (expedidos en oficinas centrales)
+                'carta de intencion',
+                'carta de intención',
+                'carta de intencion de campo clinico',
+                'carta de intención de campo clínico',
+                'campo clinico',
+                'campo clínico',
+                'opinion tecnica',
+                'opinión técnica',
+                'opinion academica',
+                'opinión académica',
+                'opinion tecnica-academica',
+                'opinión técnica-académica',
+                'convenio',
+                'convenio de colaboracion',
+                'convenio de colaboración',
+                'acuerdo academico',
+                'acuerdo académico'
             ];
 
             $nombreRequeridoLower = strtolower($nombreRequerido);
