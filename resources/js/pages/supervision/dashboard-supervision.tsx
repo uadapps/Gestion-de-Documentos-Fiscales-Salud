@@ -95,7 +95,8 @@ interface DatosSupervision {
 
 export default function DashboardSupervision() {
     const { datosSupervision } = usePage<{ datosSupervision: DatosSupervision }>().props;
-    const [selectedMetric, setSelectedMetric] = useState<'fiscales' | 'medicos' | 'general'>('general');
+    const [selectedMetric, setSelectedMetric] = useState<'legales' | 'medicos' | 'general'>('general');
+    const [campusLimit, setCampusLimit] = useState<number>(10); // Cantidad de campus a mostrar
 
     const breadcrumbItems: BreadcrumbItem[] = [
         { title: 'Dashboard', href: '/' },
@@ -114,9 +115,9 @@ export default function DashboardSupervision() {
     const getCampusFiltrados = () => {
         if (!datosSupervision) return [];
 
-        return datosSupervision.estadisticas_por_campus.filter(campus => {
+        const campusFiltrados = datosSupervision.estadisticas_por_campus.filter(campus => {
             switch (selectedMetric) {
-                case 'fiscales':
+                case 'legales':
                     return campus.tiene_fiscales;
                 case 'medicos':
                     return campus.tiene_medicos;
@@ -124,9 +125,36 @@ export default function DashboardSupervision() {
                     return true;
             }
         });
+
+        // Eliminar duplicados basados en campus_id
+        const campusUnicos = campusFiltrados.filter((campus, index, self) =>
+            index === self.findIndex((c) => c.campus_id === campus.campus_id)
+        );
+
+        return campusUnicos;
     };
 
     const campusFiltrados = getCampusFiltrados();
+
+    // Calcular campus críticos desde el frontend (campus únicos con cumplimiento < 60%)
+    const campusCriticos = campusFiltrados.filter(campus => campus.porcentaje_cumplimiento < 60).length;
+
+    // Aplicar límite de campus para las gráficas
+    const getCampusParaGraficas = () => {
+        const ordenados = [...campusFiltrados].sort((a, b) => a.campus_nombre.localeCompare(b.campus_nombre));
+        return campusLimit === -1 ? ordenados : ordenados.slice(0, campusLimit);
+    };
+
+    const campusParaGraficas = getCampusParaGraficas();
+
+    // Calcular altura dinámica según la cantidad de campus
+    const getGraficaHeight = () => {
+        const cantidad = campusParaGraficas.length;
+        if (cantidad <= 10) return 500;
+        if (cantidad <= 20) return 700;
+        if (cantidad <= 30) return 900;
+        return 1400;
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbItems}>
@@ -134,31 +162,31 @@ export default function DashboardSupervision() {
 
             <div className="h-full w-full p-6 space-y-6">
                 {/* Header Minimalista */}
-                <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h1 className="text-2xl font-bold text-gray-900 mb-1">
+                            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">
                                 Dashboard de Supervisión
                             </h1>
-                            <p className="text-gray-600">
-                                Monitoreo de documentos fiscales y médicos
+                            <p className="text-gray-600 dark:text-gray-400">
+                                Monitoreo de documentos legales y médicos
                             </p>
                         </div>
                         <div className="flex items-center gap-6">
                             <div className="text-right">
-                                <div className="text-2xl font-bold text-gray-900">
-                                    {datosSupervision?.estadisticas_generales.total_campus || 0}
+                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                                    {campusFiltrados.length}
                                 </div>
-                                <div className="text-sm text-gray-500">Campus</div>
+                                <div className="text-sm text-gray-500 dark:text-gray-400">Campus</div>
                             </div>
                             <div className="text-right">
-                                <div className="text-2xl font-bold text-blue-600">
+                                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                                     {datosSupervision?.estadisticas_generales.cumplimiento_promedio || 0}%
                                 </div>
-                                <div className="text-sm text-gray-500">Cumplimiento</div>
+                                <div className="text-sm text-gray-500 dark:text-gray-400">Cumplimiento</div>
                             </div>
                             <Link href="/supervision">
-                                <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                                <Button className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white">
                                     <Shield className="w-4 h-4 mr-2" />
                                     Ver Semáforo
                                 </Button>
@@ -172,72 +200,72 @@ export default function DashboardSupervision() {
                     <>
                         {/* Métricas Principales */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            <Card className="border-l-4 border-l-blue-500">
+                            <Card className="border-l-4 border-l-blue-500 dark:border-l-blue-400">
                                 <CardHeader className="pb-3">
-                                    <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                                    <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center gap-2">
                                         <FileText className="w-4 h-4" />
                                         Total Documentos
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-3xl font-bold text-gray-900 mb-2">
+                                    <div className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
                                         {datosSupervision.estadisticas_generales.total_documentos.toLocaleString()}
                                     </div>
-                                    <div className="flex items-center text-sm text-gray-600">
+                                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                                         <Activity className="w-4 h-4 mr-1" />
-                                        En {datosSupervision.estadisticas_generales.total_campus} campus
+                                        En {campusFiltrados.length} campus
                                     </div>
                                 </CardContent>
                             </Card>
 
-                            <Card className="border-l-4 border-l-green-500">
+                            <Card className="border-l-4 border-l-green-500 dark:border-l-green-400">
                                 <CardHeader className="pb-3">
-                                    <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                                    <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center gap-2">
                                         <CheckCircle className="w-4 h-4" />
                                         Documentos Aprobados
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-3xl font-bold text-green-600 mb-2">
+                                    <div className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">
                                         {datosSupervision.estadisticas_generales.total_aprobados.toLocaleString()}
                                     </div>
-                                    <div className="flex items-center text-sm text-green-600">
+                                    <div className="flex items-center text-sm text-green-600 dark:text-green-400">
                                         <TrendingUp className="w-4 h-4 mr-1" />
                                         {datosSupervision.estadisticas_generales.cumplimiento_promedio}% cumplimiento
                                     </div>
                                 </CardContent>
                             </Card>
 
-                            <Card className="border-l-4 border-l-yellow-500">
+                            <Card className="border-l-4 border-l-yellow-500 dark:border-l-yellow-400">
                                 <CardHeader className="pb-3">
-                                    <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                                    <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center gap-2">
                                         <Clock className="w-4 h-4" />
                                         Pendientes
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-3xl font-bold text-yellow-600 mb-2">
+                                    <div className="text-3xl font-bold text-yellow-600 dark:text-yellow-400 mb-2">
                                         {datosSupervision.estadisticas_generales.total_pendientes.toLocaleString()}
                                     </div>
-                                    <div className="flex items-center text-sm text-yellow-600">
+                                    <div className="flex items-center text-sm text-yellow-600 dark:text-yellow-400">
                                         <Clock className="w-4 h-4 mr-1" />
                                         Requieren atención
                                     </div>
                                 </CardContent>
                             </Card>
 
-                            <Card className="border-l-4 border-l-red-500">
+                            <Card className="border-l-4 border-l-red-500 dark:border-l-red-400">
                                 <CardHeader className="pb-3">
-                                    <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                                    <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center gap-2">
                                         <AlertTriangle className="w-4 h-4" />
                                         Campus Críticos
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-3xl font-bold text-red-600 mb-2">
-                                        {datosSupervision.estadisticas_generales.campus_criticos}
+                                    <div className="text-3xl font-bold text-red-600 dark:text-red-400 mb-2">
+                                        {campusCriticos}
                                     </div>
-                                    <div className="flex items-center text-sm text-red-600">
+                                    <div className="flex items-center text-sm text-red-600 dark:text-red-400">
                                         <AlertTriangle className="w-4 h-4 mr-1" />
                                         Necesitan intervención
                                     </div>
@@ -250,441 +278,284 @@ export default function DashboardSupervision() {
                         {/* Sección de Gráficas con Recharts */}
                         {datosSupervision && (
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                                {/* Control de Visualización - Selector de Cantidad */}
+                                <Card className="lg:col-span-2 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 border-blue-200 dark:border-blue-800">
+                                    <CardContent className="pt-6">
+                                        <div className="flex items-center justify-between gap-4">
+                                            <div className="flex items-center gap-3">
+                                                <BarChart3 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                                                <div>
+                                                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">Visualización de Gráficas</h3>
+                                                    <p className="text-sm text-gray-600 dark:text-gray-400">Selecciona cuántos campus mostrar</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-4">
+                                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                    Mostrar:
+                                                </label>
+                                                <select
+                                                    value={campusLimit}
+                                                    onChange={(e) => setCampusLimit(Number(e.target.value))}
+                                                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 text-sm font-medium"
+                                                >
+                                                    <option value={10}>10 Campus</option>
+                                                    <option value={20}>20 Campus</option>
+                                                    <option value={30}>30 Campus</option>
+                                                    <option value={-1}>Todos ({campusFiltrados.length})</option>
+                                                </select>
+                                                <div className="text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700">
+                                                    Mostrando: <span className="font-bold text-blue-600 dark:text-blue-400">{campusParaGraficas.length}</span> de {campusFiltrados.length}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
                                 {/* Gráfica de Barras - Cumplimiento por Campus */}
                                 <Card className="lg:col-span-2">
                                     <CardHeader>
                                         <CardTitle className="text-xl flex items-center gap-3">
-                                            <BarChart3 className="w-6 h-6 text-blue-600" />
+                                            <BarChart3 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                                             Cumplimiento por Campus
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent>
-                                        <div className="h-80">
+                                        <div style={{ height: `${getGraficaHeight()}px` }}>
                                             <ResponsiveContainer width="100%" height="100%">
                                                 <BarChart
-                                                    data={campusFiltrados.slice(0, 10).map(campus => ({
+                                                    data={campusParaGraficas.map(campus => ({
                                                         nombre: campus.campus_nombre.length > 15
                                                             ? campus.campus_nombre.substring(0, 15) + '...'
                                                             : campus.campus_nombre,
-                                                        cumplimiento: campus.porcentaje_cumplimiento,
-                                                        aprobados: selectedMetric === 'fiscales' ? campus.fiscales.aprobados :
+                                                        aprobados: selectedMetric === 'legales' ? campus.fiscales.aprobados :
                                                                   selectedMetric === 'medicos' ? campus.medicos.aprobados :
                                                                   campus.total_aprobados,
-                                                        pendientes: selectedMetric === 'fiscales' ? campus.fiscales.pendientes :
+                                                        pendientes: selectedMetric === 'legales' ? campus.fiscales.pendientes :
                                                                    selectedMetric === 'medicos' ? campus.medicos.pendientes :
                                                                    campus.total_pendientes,
-                                                        total: selectedMetric === 'fiscales' ? campus.fiscales.total_documentos :
+                                                        total: selectedMetric === 'legales' ? campus.fiscales.total_documentos :
                                                               selectedMetric === 'medicos' ? campus.medicos.total_documentos :
                                                               campus.total_documentos
                                                     }))}
-                                                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                                                    margin={{ top: 20, right: 30, left: 20, bottom: 120 }}
                                                 >
-                                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="dark:stroke-gray-700" />
                                                     <XAxis
                                                         dataKey="nombre"
-                                                        tick={{ fontSize: 12 }}
+                                                        tick={{ fontSize: 11, fill: 'currentColor' }}
+                                                        className="text-gray-700 dark:text-gray-300"
                                                         angle={-45}
                                                         textAnchor="end"
-                                                        height={80}
+                                                        height={100}
+                                                        interval={0}
                                                     />
-                                                    <YAxis tick={{ fontSize: 12 }} />
-                                                    <Tooltip
-                                                        contentStyle={{
-                                                            backgroundColor: '#f8fafc',
-                                                            border: '1px solid #e2e8f0',
-                                                            borderRadius: '8px'
-                                                        }}
-                                                        formatter={(value, name) => [
-                                                            value + (name === 'cumplimiento' ? '%' : ''),
-                                                            name === 'cumplimiento' ? 'Cumplimiento' :
-                                                            name === 'aprobados' ? 'Aprobados' :
-                                                            name === 'pendientes' ? 'Pendientes' : 'Total'
-                                                        ]}
-                                                    />
-                                                    <Legend />
-                                                    <Bar
-                                                        dataKey="cumplimiento"
-                                                        fill="#3b82f6"
-                                                        name="Cumplimiento (%)"
-                                                        radius={[4, 4, 0, 0]}
-                                                    />
-                                                </BarChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                {/* Gráfica de Dona - Estados Generales */}
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="text-lg flex items-center gap-2">
-                                            <Activity className="w-5 h-5 text-green-600" />
-                                            Estados de Documentos
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="h-64">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <PieChart>
-                                                    <Pie
-                                                        data={[
-                                                            {
-                                                                name: 'Aprobados',
-                                                                value: datosSupervision.estadisticas_generales.total_aprobados,
-                                                                color: '#10b981'
-                                                            },
-                                                            {
-                                                                name: 'Pendientes',
-                                                                value: datosSupervision.estadisticas_generales.total_pendientes,
-                                                                color: '#f59e0b'
-                                                            },
-                                                            {
-                                                                name: 'Caducados',
-                                                                value: datosSupervision.estadisticas_generales.total_caducados,
-                                                                color: '#f97316'
-                                                            },
-                                                            {
-                                                                name: 'Rechazados',
-                                                                value: datosSupervision.estadisticas_generales.total_rechazados,
-                                                                color: '#ef4444'
-                                                            }
-                                                        ].filter(item => item.value > 0)}
-                                                        cx="50%"
-                                                        cy="50%"
-                                                        innerRadius={40}
-                                                        outerRadius={80}
-                                                        paddingAngle={2}
-                                                        dataKey="value"
-                                                    >
-                                                        {[
-                                                            { color: '#10b981' },
-                                                            { color: '#f59e0b' },
-                                                            { color: '#f97316' },
-                                                            { color: '#ef4444' }
-                                                        ].map((entry, index) => (
-                                                            <Cell key={`cell-${index}`} fill={entry.color} />
-                                                        ))}
-                                                    </Pie>
-                                                    <Tooltip
-                                                        contentStyle={{
-                                                            backgroundColor: '#f8fafc',
-                                                            border: '1px solid #e2e8f0',
-                                                            borderRadius: '8px'
-                                                        }}
-                                                        formatter={(value) => [value.toLocaleString(), 'Documentos']}
-                                                    />
-                                                    <Legend />
-                                                </PieChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                {/* Gráfica de Área - Distribución por Tipo */}
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="text-lg flex items-center gap-2">
-                                            <TrendingUp className="w-5 h-5 text-purple-600" />
-                                            Distribución por Tipo
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="h-64">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <AreaChart
-                                                    data={campusFiltrados.slice(0, 8).map(campus => ({
-                                                        campus: campus.campus_nombre.substring(0, 10) + '...',
-                                                        fiscales: campus.fiscales.total_documentos,
-                                                        medicos: campus.medicos.total_documentos
-                                                    }))}
-                                                    margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-                                                >
-                                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                                    <XAxis
-                                                        dataKey="campus"
-                                                        tick={{ fontSize: 11 }}
-                                                        angle={-45}
-                                                        textAnchor="end"
-                                                        height={60}
-                                                    />
-                                                    <YAxis tick={{ fontSize: 11 }} />
-                                                    <Tooltip
-                                                        contentStyle={{
-                                                            backgroundColor: '#f8fafc',
-                                                            border: '1px solid #e2e8f0',
-                                                            borderRadius: '8px'
-                                                        }}
-                                                        formatter={(value, name) => [
-                                                            value,
-                                                            name === 'fiscales' ? 'Docs Fiscales' : 'Docs Médicos'
-                                                        ]}
-                                                    />
-                                                    <Area
-                                                        type="monotone"
-                                                        dataKey="fiscales"
-                                                        stackId="1"
-                                                        stroke="#3b82f6"
-                                                        fill="#3b82f6"
-                                                        fillOpacity={0.6}
-                                                    />
-                                                    <Area
-                                                        type="monotone"
-                                                        dataKey="medicos"
-                                                        stackId="1"
-                                                        stroke="#10b981"
-                                                        fill="#10b981"
-                                                        fillOpacity={0.6}
-                                                    />
-                                                    <Legend />
-                                                </AreaChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </div>
-                        )}
-
-                        {/* Sección de Gráficas con Recharts */}
-                        {datosSupervision && (
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                                {/* Gráfica de Barras - Cumplimiento por Campus */}
-                                <Card className="lg:col-span-2">
-                                    <CardHeader>
-                                        <CardTitle className="text-xl flex items-center gap-3">
-                                            <BarChart3 className="w-6 h-6 text-blue-600" />
-                                            Cumplimiento por Campus
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="h-80">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <BarChart
-                                                    data={campusFiltrados.slice(0, 10).map(campus => ({
-                                                        nombre: campus.campus_nombre.length > 15
-                                                            ? campus.campus_nombre.substring(0, 15) + '...'
-                                                            : campus.campus_nombre,
-                                                        cumplimiento: campus.porcentaje_cumplimiento,
-                                                        aprobados: selectedMetric === 'fiscales' ? campus.fiscales.aprobados :
-                                                                  selectedMetric === 'medicos' ? campus.medicos.aprobados :
-                                                                  campus.total_aprobados,
-                                                        pendientes: selectedMetric === 'fiscales' ? campus.fiscales.pendientes :
-                                                                   selectedMetric === 'medicos' ? campus.medicos.pendientes :
-                                                                   campus.total_pendientes,
-                                                        total: selectedMetric === 'fiscales' ? campus.fiscales.total_documentos :
-                                                              selectedMetric === 'medicos' ? campus.medicos.total_documentos :
-                                                              campus.total_documentos
-                                                    }))}
-                                                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                                                >
-                                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                                    <XAxis
-                                                        dataKey="nombre"
-                                                        tick={{ fontSize: 12 }}
-                                                        angle={-45}
-                                                        textAnchor="end"
-                                                        height={80}
-                                                    />
-                                                    <YAxis tick={{ fontSize: 12 }} />
-                                                    <Tooltip
-                                                        contentStyle={{
-                                                            backgroundColor: '#f8fafc',
-                                                            border: '1px solid #e2e8f0',
-                                                            borderRadius: '8px'
-                                                        }}
-                                                        formatter={(value, name) => [
-                                                            value + (name === 'cumplimiento' ? '%' : ''),
-                                                            name === 'cumplimiento' ? 'Cumplimiento' :
-                                                            name === 'aprobados' ? 'Aprobados' :
-                                                            name === 'pendientes' ? 'Pendientes' : 'Total'
-                                                        ]}
-                                                    />
-                                                    <Legend />
-                                                    <Bar
-                                                        dataKey="cumplimiento"
-                                                        fill="#3b82f6"
-                                                        name="Cumplimiento (%)"
-                                                        radius={[4, 4, 0, 0]}
-                                                    />
-                                                </BarChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                {/* Gráfica de Dona - Estados Generales */}
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="text-lg flex items-center gap-2">
-                                            <Activity className="w-5 h-5 text-green-600" />
-                                            Estados de Documentos
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="h-64">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <PieChart>
-                                                    <Pie
-                                                        data={[
-                                                            {
-                                                                name: 'Aprobados',
-                                                                value: datosSupervision.estadisticas_generales.total_aprobados,
-                                                                color: '#10b981'
-                                                            },
-                                                            {
-                                                                name: 'Pendientes',
-                                                                value: datosSupervision.estadisticas_generales.total_pendientes,
-                                                                color: '#f59e0b'
-                                                            },
-                                                            {
-                                                                name: 'Caducados',
-                                                                value: datosSupervision.estadisticas_generales.total_caducados,
-                                                                color: '#f97316'
-                                                            },
-                                                            {
-                                                                name: 'Rechazados',
-                                                                value: datosSupervision.estadisticas_generales.total_rechazados,
-                                                                color: '#ef4444'
-                                                            }
-                                                        ].filter(item => item.value > 0)}
-                                                        cx="50%"
-                                                        cy="50%"
-                                                        innerRadius={40}
-                                                        outerRadius={80}
-                                                        paddingAngle={2}
-                                                        dataKey="value"
-                                                    >
-                                                        {[
-                                                            { color: '#10b981' },
-                                                            { color: '#f59e0b' },
-                                                            { color: '#f97316' },
-                                                            { color: '#ef4444' }
-                                                        ].map((entry, index) => (
-                                                            <Cell key={`cell-${index}`} fill={entry.color} />
-                                                        ))}
-                                                    </Pie>
-                                                    <Tooltip
-                                                        contentStyle={{
-                                                            backgroundColor: '#f8fafc',
-                                                            border: '1px solid #e2e8f0',
-                                                            borderRadius: '8px'
-                                                        }}
-                                                        formatter={(value) => [value.toLocaleString(), 'Documentos']}
-                                                    />
-                                                    <Legend />
-                                                </PieChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                {/* Gráfica de Área - Distribución por Tipo */}
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="text-lg flex items-center gap-2">
-                                            <TrendingUp className="w-5 h-5 text-purple-600" />
-                                            Distribución por Tipo
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="h-64">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <AreaChart
-                                                    data={campusFiltrados.slice(0, 8).map(campus => ({
-                                                        campus: campus.campus_nombre.substring(0, 10) + '...',
-                                                        fiscales: campus.fiscales.total_documentos,
-                                                        medicos: campus.medicos.total_documentos
-                                                    }))}
-                                                    margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-                                                >
-                                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                                    <XAxis
-                                                        dataKey="campus"
-                                                        tick={{ fontSize: 11 }}
-                                                        angle={-45}
-                                                        textAnchor="end"
-                                                        height={60}
-                                                    />
-                                                    <YAxis tick={{ fontSize: 11 }} />
-                                                    <Tooltip
-                                                        contentStyle={{
-                                                            backgroundColor: '#f8fafc',
-                                                            border: '1px solid #e2e8f0',
-                                                            borderRadius: '8px'
-                                                        }}
-                                                        formatter={(value, name) => [
-                                                            value,
-                                                            name === 'fiscales' ? 'Docs Fiscales' : 'Docs Médicos'
-                                                        ]}
-                                                    />
-                                                    <Area
-                                                        type="monotone"
-                                                        dataKey="fiscales"
-                                                        stackId="1"
-                                                        stroke="#3b82f6"
-                                                        fill="#3b82f6"
-                                                        fillOpacity={0.6}
-                                                    />
-                                                    <Area
-                                                        type="monotone"
-                                                        dataKey="medicos"
-                                                        stackId="1"
-                                                        stroke="#10b981"
-                                                        fill="#10b981"
-                                                        fillOpacity={0.6}
-                                                    />
-                                                    <Legend />
-                                                </AreaChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                {/* Gráfica de Barras Apiladas - Análisis Detallado */}
-                                <Card className="lg:col-span-2">
-                                    <CardHeader>
-                                        <CardTitle className="text-xl flex items-center gap-3">
-                                            <BarChart3 className="w-6 h-6 text-indigo-600" />
-                                            Análisis Detallado por Campus
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="h-96">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <BarChart
-                                                    data={campusFiltrados.slice(0, 12).map(campus => ({
-                                                        nombre: campus.campus_nombre.length > 12
-                                                            ? campus.campus_nombre.substring(0, 12) + '...'
-                                                            : campus.campus_nombre,
-                                                        aprobados: selectedMetric === 'fiscales' ? campus.fiscales.aprobados :
-                                                                  selectedMetric === 'medicos' ? campus.medicos.aprobados :
-                                                                  campus.total_aprobados,
-                                                        pendientes: selectedMetric === 'fiscales' ? campus.fiscales.pendientes :
-                                                                   selectedMetric === 'medicos' ? campus.medicos.pendientes :
-                                                                   campus.total_pendientes,
-                                                        caducados: selectedMetric === 'fiscales' ? campus.fiscales.caducados :
-                                                                  selectedMetric === 'medicos' ? campus.medicos.caducados :
-                                                                  campus.total_caducados,
-                                                        rechazados: selectedMetric === 'fiscales' ? campus.fiscales.rechazados :
-                                                                   selectedMetric === 'medicos' ? campus.medicos.rechazados :
-                                                                   campus.total_rechazados
-                                                    }))}
-                                                    margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-                                                >
-                                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                                    <XAxis
-                                                        dataKey="nombre"
-                                                        tick={{ fontSize: 11 }}
-                                                        angle={-45}
-                                                        textAnchor="end"
-                                                        height={80}
-                                                    />
-                                                    <YAxis tick={{ fontSize: 11 }} />
+                                                    <YAxis tick={{ fontSize: 12, fill: 'currentColor' }} className="text-gray-700 dark:text-gray-300" />
                                                     <Tooltip
                                                         contentStyle={{
                                                             backgroundColor: '#f8fafc',
                                                             border: '1px solid #e2e8f0',
                                                             borderRadius: '8px',
-                                                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                                                            color: '#1f2937'
+                                                        }}
+                                                        formatter={(value, name) => [
+                                                            value,
+                                                            name === 'aprobados' ? 'Aprobados' :
+                                                            name === 'pendientes' ? 'Pendientes' : 'Total'
+                                                        ]}
+                                                    />
+                                                    <Legend wrapperStyle={{ color: 'currentColor' }} className="text-gray-700 dark:text-gray-300" />
+                                                    <Bar
+                                                        dataKey="aprobados"
+                                                        fill="#10b981"
+                                                        name="Aprobados"
+                                                        radius={[4, 4, 0, 0]}
+                                                    />
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                {/* Gráfica de Dona - Estados Generales */}
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="text-lg flex items-center gap-2">
+                                            <Activity className="w-5 h-5 text-green-600 dark:text-green-400" />
+                                            Estados de Documentos
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="h-64">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <PieChart>
+                                                    <Pie
+                                                        data={[
+                                                            {
+                                                                name: 'Aprobados',
+                                                                value: datosSupervision.estadisticas_generales.total_aprobados,
+                                                                color: '#10b981'
+                                                            },
+                                                            {
+                                                                name: 'Pendientes',
+                                                                value: datosSupervision.estadisticas_generales.total_pendientes,
+                                                                color: '#f59e0b'
+                                                            },
+                                                            {
+                                                                name: 'Caducados',
+                                                                value: datosSupervision.estadisticas_generales.total_caducados,
+                                                                color: '#f97316'
+                                                            },
+                                                            {
+                                                                name: 'Rechazados',
+                                                                value: datosSupervision.estadisticas_generales.total_rechazados,
+                                                                color: '#ef4444'
+                                                            }
+                                                        ].filter(item => item.value > 0)}
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        innerRadius={40}
+                                                        outerRadius={80}
+                                                        paddingAngle={2}
+                                                        dataKey="value"
+                                                    >
+                                                        {[
+                                                            { color: '#10b981' },
+                                                            { color: '#f59e0b' },
+                                                            { color: '#f97316' },
+                                                            { color: '#ef4444' }
+                                                        ].map((entry, index) => (
+                                                            <Cell key={`cell-${index}`} fill={entry.color} />
+                                                        ))}
+                                                    </Pie>
+                                                    <Tooltip
+                                                        contentStyle={{
+                                                            backgroundColor: '#f8fafc',
+                                                            border: '1px solid #e2e8f0',
+                                                            borderRadius: '8px'
+                                                        }}
+                                                        formatter={(value) => [value.toLocaleString(), 'Documentos']}
+                                                    />
+                                                    <Legend />
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                {/* Gráfica de Área - Distribución por Tipo */}
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="text-lg flex items-center gap-2">
+                                            <TrendingUp className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                                            Distribución por Tipo
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div style={{ height: `${Math.max(400, getGraficaHeight() * 0.5)}px` }}>
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <AreaChart
+                                                    data={campusParaGraficas.map(campus => ({
+                                                        campus: campus.campus_nombre.substring(0, 10) + '...',
+                                                        legales: campus.fiscales.total_documentos,
+                                                        medicos: campus.medicos.total_documentos
+                                                    }))}
+                                                    margin={{ top: 10, right: 30, left: 0, bottom: 100 }}
+                                                >
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="dark:stroke-gray-700" />
+                                                    <XAxis
+                                                        dataKey="campus"
+                                                        tick={{ fontSize: 10, fill: 'currentColor' }}
+                                                        className="text-gray-700 dark:text-gray-300"
+                                                        angle={-45}
+                                                        textAnchor="end"
+                                                        height={80}
+                                                        interval={0}
+                                                    />
+                                                    <YAxis tick={{ fontSize: 11, fill: 'currentColor' }} className="text-gray-700 dark:text-gray-300" />
+                                                    <Tooltip
+                                                        contentStyle={{
+                                                            backgroundColor: '#f8fafc',
+                                                            border: '1px solid #e2e8f0',
+                                                            borderRadius: '8px',
+                                                            color: '#1f2937'
+                                                        }}
+                                                        formatter={(value, name) => [
+                                                            value,
+                                                            name === 'legales' ? 'Docs Legales' : 'Docs Médicos'
+                                                        ]}
+                                                    />
+                                                    <Area
+                                                        type="monotone"
+                                                        dataKey="legales"
+                                                        stackId="1"
+                                                        stroke="#3b82f6"
+                                                        fill="#3b82f6"
+                                                        fillOpacity={0.6}
+                                                    />
+                                                    <Area
+                                                        type="monotone"
+                                                        dataKey="medicos"
+                                                        stackId="1"
+                                                        stroke="#10b981"
+                                                        fill="#10b981"
+                                                        fillOpacity={0.6}
+                                                    />
+                                                    <Legend />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                                {/* Gráfica de Barras Apiladas - Análisis Detallado */}
+                                <Card className="lg:col-span-2">
+                                    <CardHeader>
+                                        <CardTitle className="text-xl flex items-center gap-3">
+                                            <BarChart3 className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                                            Análisis Detallado por Campus
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div style={{ height: `${getGraficaHeight()}px` }}>
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart
+                                                    data={campusParaGraficas.map(campus => ({
+                                                        nombre: campus.campus_nombre.length > 12
+                                                            ? campus.campus_nombre.substring(0, 12) + '...'
+                                                            : campus.campus_nombre,
+                                                        aprobados: selectedMetric === 'legales' ? campus.fiscales.aprobados :
+                                                                  selectedMetric === 'medicos' ? campus.medicos.aprobados :
+                                                                  campus.total_aprobados,
+                                                        pendientes: selectedMetric === 'legales' ? campus.fiscales.pendientes :
+                                                                   selectedMetric === 'medicos' ? campus.medicos.pendientes :
+                                                                   campus.total_pendientes,
+                                                        caducados: selectedMetric === 'legales' ? campus.fiscales.caducados :
+                                                                  selectedMetric === 'medicos' ? campus.medicos.caducados :
+                                                                  campus.total_caducados,
+                                                        rechazados: selectedMetric === 'legales' ? campus.fiscales.rechazados :
+                                                                   selectedMetric === 'medicos' ? campus.medicos.rechazados :
+                                                                   campus.total_rechazados
+                                                    }))}
+                                                    margin={{ top: 20, right: 30, left: 20, bottom: 120 }}
+                                                >
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="dark:stroke-gray-700" />
+                                                    <XAxis
+                                                        dataKey="nombre"
+                                                        tick={{ fontSize: 10, fill: 'currentColor' }}
+                                                        className="text-gray-700 dark:text-gray-300"
+                                                        angle={-45}
+                                                        textAnchor="end"
+                                                        height={100}
+                                                        interval={0}
+                                                    />
+                                                    <YAxis tick={{ fontSize: 11, fill: 'currentColor' }} className="text-gray-700 dark:text-gray-300" />
+                                                    <Tooltip
+                                                        contentStyle={{
+                                                            backgroundColor: '#f8fafc',
+                                                            border: '1px solid #e2e8f0',
+                                                            borderRadius: '8px',
+                                                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                                                            color: '#1f2937'
                                                         }}
                                                         formatter={(value, name, props) => {
                                                             const campusData = props.payload;
@@ -710,305 +581,12 @@ export default function DashboardSupervision() {
                                                             return order.indexOf(String(item.dataKey || ''));
                                                         }}
                                                     />
-                                                    <Legend />
+                                                    <Legend wrapperStyle={{ color: 'currentColor' }} className="text-gray-700 dark:text-gray-300" />
                                                     <Bar dataKey="aprobados" stackId="a" fill="#10b981" name="Aprobados" />
                                                     <Bar dataKey="pendientes" stackId="a" fill="#f59e0b" name="Pendientes" />
                                                     <Bar dataKey="caducados" stackId="a" fill="#f97316" name="Caducados" />
                                                     <Bar dataKey="rechazados" stackId="a" fill="#ef4444" name="Rechazados" />
                                                 </BarChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                {/* Gráfica de Líneas - Tendencias de Cumplimiento */}
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="text-lg flex items-center gap-2">
-                                            <TrendingUp className="w-5 h-5 text-blue-600" />
-                                            Top Campus por Cumplimiento
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="h-64">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <LineChart
-                                                    data={campusFiltrados
-                                                        .sort((a, b) => b.porcentaje_cumplimiento - a.porcentaje_cumplimiento)
-                                                        .slice(0, 8)
-                                                        .map(campus => ({
-                                                            campus: campus.campus_nombre.substring(0, 8) + '...',
-                                                            cumplimiento: campus.porcentaje_cumplimiento
-                                                        }))}
-                                                    margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-                                                >
-                                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                                    <XAxis
-                                                        dataKey="campus"
-                                                        tick={{ fontSize: 10 }}
-                                                        angle={-45}
-                                                        textAnchor="end"
-                                                        height={50}
-                                                    />
-                                                    <YAxis
-                                                        tick={{ fontSize: 11 }}
-                                                        domain={[0, 100]}
-                                                    />
-                                                    <Tooltip
-                                                        contentStyle={{
-                                                            backgroundColor: '#f8fafc',
-                                                            border: '1px solid #e2e8f0',
-                                                            borderRadius: '8px'
-                                                        }}
-                                                        formatter={(value) => [value + '%', 'Cumplimiento']}
-                                                    />
-                                                    <Line
-                                                        type="monotone"
-                                                        dataKey="cumplimiento"
-                                                        stroke="#3b82f6"
-                                                        strokeWidth={3}
-                                                        dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
-                                                        activeDot={{ r: 6 }}
-                                                    />
-                                                </LineChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                {/* Gráfica de Comparación Fiscal vs Médico */}
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="text-lg flex items-center gap-2">
-                                            <BarChart3 className="w-5 h-5 text-emerald-600" />
-                                            Comparación Fiscal vs Médico
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="h-64">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <BarChart
-                                                    data={[
-                                                        {
-                                                            tipo: 'Fiscales',
-                                                            total: campusFiltrados.reduce((sum, campus) => sum + campus.fiscales.total_documentos, 0),
-                                                            aprobados: campusFiltrados.reduce((sum, campus) => sum + campus.fiscales.aprobados, 0),
-                                                            pendientes: campusFiltrados.reduce((sum, campus) => sum + campus.fiscales.pendientes, 0)
-                                                        },
-                                                        {
-                                                            tipo: 'Médicos',
-                                                            total: campusFiltrados.reduce((sum, campus) => sum + campus.medicos.total_documentos, 0),
-                                                            aprobados: campusFiltrados.reduce((sum, campus) => sum + campus.medicos.aprobados, 0),
-                                                            pendientes: campusFiltrados.reduce((sum, campus) => sum + campus.medicos.pendientes, 0)
-                                                        }
-                                                    ]}
-                                                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                                                >
-                                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                                    <XAxis dataKey="tipo" tick={{ fontSize: 12 }} />
-                                                    <YAxis tick={{ fontSize: 12 }} />
-                                                    <Tooltip
-                                                        contentStyle={{
-                                                            backgroundColor: '#f8fafc',
-                                                            border: '1px solid #e2e8f0',
-                                                            borderRadius: '8px'
-                                                        }}
-                                                    />
-                                                    <Legend />
-                                                    <Bar dataKey="total" fill="#64748b" name="Total" />
-                                                    <Bar dataKey="aprobados" fill="#10b981" name="Aprobados" />
-                                                    <Bar dataKey="pendientes" fill="#f59e0b" name="Pendientes" />
-                                                </BarChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                {/* Nueva Gráfica de Radar - Performance Integral */}
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="text-lg flex items-center gap-2">
-                                            <TrendingUp className="w-5 h-5 text-purple-600" />
-                                            Performance Top 5 Campus
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="h-80">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <RadarChart data={campusFiltrados
-                                                    .sort((a, b) => b.porcentaje_cumplimiento - a.porcentaje_cumplimiento)
-                                                    .slice(0, 5)
-                                                    .map(campus => ({
-                                                        campus: campus.campus_nombre.substring(0, 8),
-                                                        cumplimiento: campus.porcentaje_cumplimiento,
-                                                        eficiencia: Math.min(100, (campus.total_aprobados / Math.max(1, campus.total_documentos)) * 100),
-                                                        actividad: Math.min(100, (campus.total_documentos / 20) * 100),
-                                                        calidad: Math.max(0, 100 - (campus.total_rechazados / Math.max(1, campus.total_documentos)) * 100)
-                                                    }))}>
-                                                    <PolarGrid />
-                                                    <PolarAngleAxis dataKey="campus" tick={{ fontSize: 11 }} />
-                                                    <PolarRadiusAxis
-                                                        angle={90}
-                                                        domain={[0, 100]}
-                                                        tick={{ fontSize: 10 }}
-                                                    />
-                                                    <Radar
-                                                        name="Cumplimiento"
-                                                        dataKey="cumplimiento"
-                                                        stroke="#3b82f6"
-                                                        fill="#3b82f6"
-                                                        fillOpacity={0.3}
-                                                        strokeWidth={2}
-                                                    />
-                                                    <Radar
-                                                        name="Eficiencia"
-                                                        dataKey="eficiencia"
-                                                        stroke="#10b981"
-                                                        fill="#10b981"
-                                                        fillOpacity={0.2}
-                                                        strokeWidth={2}
-                                                    />
-                                                    <Tooltip
-                                                        contentStyle={{
-                                                            backgroundColor: '#f8fafc',
-                                                            border: '1px solid #e2e8f0',
-                                                            borderRadius: '8px'
-                                                        }}
-                                                        formatter={(value) => [`${Number(value).toFixed(1)}%`, '']}
-                                                    />
-                                                    <Legend />
-                                                </RadarChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                {/* Nueva Gráfica - Mapa de Calor Simulado con Barras */}
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="text-lg flex items-center gap-2">
-                                            <BarChart3 className="w-5 h-5 text-red-600" />
-                                            Mapa de Rendimiento
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="h-80">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <BarChart
-                                                    layout="horizontal"
-                                                    data={campusFiltrados
-                                                        .sort((a, b) => a.porcentaje_cumplimiento - b.porcentaje_cumplimiento)
-                                                        .slice(0, 10)
-                                                        .map(campus => ({
-                                                            campus: campus.campus_nombre.substring(0, 12),
-                                                            cumplimiento: campus.porcentaje_cumplimiento,
-                                                            riesgo: 100 - campus.porcentaje_cumplimiento
-                                                        }))}
-                                                    margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
-                                                >
-                                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                                    <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} />
-                                                    <YAxis
-                                                        dataKey="campus"
-                                                        type="category"
-                                                        tick={{ fontSize: 10 }}
-                                                        width={75}
-                                                    />
-                                                    <Tooltip
-                                                        contentStyle={{
-                                                            backgroundColor: '#f8fafc',
-                                                            border: '1px solid #e2e8f0',
-                                                            borderRadius: '8px'
-                                                        }}
-                                                        formatter={(value, name) => [
-                                                            `${value}%`,
-                                                            name === 'cumplimiento' ? 'Cumplimiento' : 'Riesgo'
-                                                        ]}
-                                                    />
-                                                    <Bar
-                                                        dataKey="cumplimiento"
-                                                        fill="#10b981"
-                                                        name="Cumplimiento"
-                                                        radius={[0, 4, 4, 0]}
-                                                    />
-                                                    <Bar
-                                                        dataKey="riesgo"
-                                                        fill="#ef4444"
-                                                        name="Riesgo"
-                                                        radius={[0, 4, 4, 0]}
-                                                    />
-                                                </BarChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                {/* Nueva Gráfica - Tendencias Temporales Simuladas */}
-                                <Card className="lg:col-span-2">
-                                    <CardHeader>
-                                        <CardTitle className="text-xl flex items-center gap-3">
-                                            <TrendingUp className="w-6 h-6 text-indigo-600" />
-                                            Tendencias de Cumplimiento (Últimos 6 Meses)
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="h-80">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <LineChart
-                                                    data={(() => {
-                                                        const meses = ['May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct'];
-                                                        const topCampus = campusFiltrados
-                                                            .sort((a, b) => b.porcentaje_cumplimiento - a.porcentaje_cumplimiento)
-                                                            .slice(0, 5);
-
-                                                        return meses.map((mes, index) => {
-                                                            const dataPoint: any = { mes };
-                                                            topCampus.forEach(campus => {
-                                                                const variacion = (Math.random() - 0.5) * 20;
-                                                                const base = campus.porcentaje_cumplimiento;
-                                                                const tendencia = Math.max(0, Math.min(100, base + variacion - (5 - index) * 3));
-                                                                dataPoint[campus.campus_nombre.substring(0, 8)] = Math.round(tendencia);
-                                                            });
-                                                            return dataPoint;
-                                                        });
-                                                    })()}
-                                                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                                                >
-                                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                                    <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
-                                                    <YAxis
-                                                        domain={[0, 100]}
-                                                        tick={{ fontSize: 12 }}
-                                                        label={{ value: 'Cumplimiento %', angle: -90, position: 'insideLeft' }}
-                                                    />
-                                                    <Tooltip
-                                                        contentStyle={{
-                                                            backgroundColor: '#f8fafc',
-                                                            border: '1px solid #e2e8f0',
-                                                            borderRadius: '8px'
-                                                        }}
-                                                        formatter={(value) => [`${value}%`, 'Cumplimiento']}
-                                                        labelFormatter={(label) => `Mes: ${label}`}
-                                                    />
-                                                    <Legend />
-                                                    {campusFiltrados
-                                                        .sort((a, b) => b.porcentaje_cumplimiento - a.porcentaje_cumplimiento)
-                                                        .slice(0, 5)
-                                                        .map((campus, index) => (
-                                                            <Line
-                                                                key={campus.campus_id}
-                                                                type="monotone"
-                                                                dataKey={campus.campus_nombre.substring(0, 8)}
-                                                                stroke={[
-                                                                    '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'
-                                                                ][index]}
-                                                                strokeWidth={2}
-                                                                dot={{ r: 4 }}
-                                                                activeDot={{ r: 6 }}
-                                                            />
-                                                        ))
-                                                    }
-                                                </LineChart>
                                             </ResponsiveContainer>
                                         </div>
                                     </CardContent>
