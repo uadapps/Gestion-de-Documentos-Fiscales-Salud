@@ -4211,8 +4211,10 @@ Responde SOLO con el JSON, sin explicaciones adicionales.";
             // Verificar si alguna ciudad del documento coincide con la del campus
             foreach ($ciudadesDocumento as $ciudadDoc) {
                 $ciudadDocNormalizada = $this->normalizarNombreCiudad($ciudadDoc);
+
+                // 🏙️ VALIDACIÓN 1: Coincidencia exacta de ciudad
                 if ($this->ciudadesCoinciden($ciudadCampus, $ciudadDocNormalizada)) {
-                    Log::info('🏙️ ✅ Ciudad válida encontrada', [
+                    Log::info('🏙️ ✅ Ciudad válida encontrada (coincidencia exacta)', [
                         'ciudad_campus' => $ciudadCampus,
                         'ciudad_documento' => $ciudadDocNormalizada
                     ]);
@@ -4220,7 +4222,24 @@ Responde SOLO con el JSON, sin explicaciones adicionales.";
                         'coincide' => true,
                         'ciudad_campus' => $ciudadCampus,
                         'ciudades_documento' => $ciudadesDocumento,
-                        'ciudad_validada' => $ciudadDocNormalizada
+                        'ciudad_validada' => $ciudadDocNormalizada,
+                        'tipo_validacion' => 'coincidencia_exacta'
+                    ];
+                }
+
+                // 🌎 VALIDACIÓN 2: Mismo estado (ej: Hermosillo y Nogales ambos en Sonora)
+                if ($this->ciudadesMismoEstado($ciudadCampus, $ciudadDocNormalizada)) {
+                    Log::info('🏙️ ✅ Ciudad válida encontrada (mismo estado)', [
+                        'ciudad_campus' => $ciudadCampus,
+                        'ciudad_documento' => $ciudadDocNormalizada,
+                        'razon' => 'Ambas ciudades pertenecen al mismo estado'
+                    ]);
+                    return [
+                        'coincide' => true,
+                        'ciudad_campus' => $ciudadCampus,
+                        'ciudades_documento' => $ciudadesDocumento,
+                        'ciudad_validada' => $ciudadDocNormalizada,
+                        'tipo_validacion' => 'mismo_estado'
                     ];
                 }
             }
@@ -4428,6 +4447,202 @@ Responde SOLO con el JSON, sin explicaciones adicionales.";
             if (in_array($ciudad1, $alias) && in_array($ciudad2, $alias)) {
                 return true;
             }
+        }
+
+        return false;
+    }
+
+    /**
+     * Verifica si dos ciudades pertenecen al mismo estado
+     */
+    private function ciudadesMismoEstado($ciudad1, $ciudad2)
+    {
+        if (empty($ciudad1) || empty($ciudad2)) return false;
+
+        // Normalizar nombres
+        $ciudad1 = strtolower(trim($ciudad1));
+        $ciudad2 = strtolower(trim($ciudad2));
+
+        // Mapa de ciudades por estado
+        $estadosCiudades = [
+            'sonora' => [
+                'hermosillo',
+                'nogales',
+                'ciudad obregon',
+                'cd obregon',
+                'obregon',
+                'guaymas',
+                'san luis rio colorado',
+                'navojoa',
+                'agua prieta',
+                'caborca'
+            ],
+            'durango' => [
+                'durango',
+                'victoria de durango',
+                'ciudad de durango',
+                'gomez palacio',
+                'gómez palacio',
+                'lerdo',
+                'santiago papasquiaro'
+            ],
+            'zacatecas' => [
+                'zacatecas',
+                'fresnillo',
+                'guadalupe',
+                'jerez',
+                'rio grande',
+                'río grande',
+                'sombrerete',
+                'jalpa'
+            ],
+            'chihuahua' => [
+                'chihuahua',
+                'ciudad juarez',
+                'cd juarez',
+                'juarez',
+                'cuauhtemoc',
+                'cuauhtémoc',
+                'delicias',
+                'parral',
+                'hidalgo del parral',
+                'nuevo casas grandes'
+            ],
+            'sinaloa' => [
+                'culiacan',
+                'culiacán',
+                'mazatlan',
+                'mazatlán',
+                'los mochis',
+                'mochis',
+                'guasave',
+                'guamuchil',
+                'guamúchil',
+                'ahome'
+            ],
+            'coahuila' => [
+                'saltillo',
+                'torreon',
+                'torreón',
+                'monclova',
+                'piedras negras',
+                'ciudad acuna',
+                'cd acuna',
+                'acuna',
+                'acuña'
+            ],
+            'nuevo leon' => [
+                'monterrey',
+                'san pedro garza garcia',
+                'san pedro',
+                'guadalupe',
+                'san nicolas de los garza',
+                'san nicolás',
+                'apodaca',
+                'santa catarina',
+                'santiago'
+            ],
+            'jalisco' => [
+                'guadalajara',
+                'zapopan',
+                'tlaquepaque',
+                'tonala',
+                'tonalá',
+                'puerto vallarta',
+                'lagos de moreno',
+                'tepatitlan',
+                'tepatitlán'
+            ],
+            'baja california' => [
+                'tijuana',
+                'mexicali',
+                'ensenada',
+                'tecate',
+                'rosarito',
+                'playas de rosarito'
+            ],
+            'veracruz' => [
+                'xalapa',
+                'jalapa',
+                'veracruz',
+                'puerto de veracruz',
+                'coatzacoalcos',
+                'poza rica',
+                'cordoba',
+                'córdoba',
+                'orizaba'
+            ],
+            'tamaulipas' => [
+                'ciudad victoria',
+                'victoria',
+                'tampico',
+                'reynosa',
+                'matamoros',
+                'nuevo laredo'
+            ],
+            'san luis potosi' => [
+                'san luis potosi',
+                'san luis potosí',
+                'soledad de graciano sanchez',
+                'soledad',
+                'matehuala',
+                'ciudad valles'
+            ],
+            'michoacan' => [
+                'morelia',
+                'uruapan',
+                'zamora',
+                'lazaro cardenas',
+                'lázaro cárdenas',
+                'patzcuaro',
+                'pátzcuaro'
+            ],
+            'queretaro' => [
+                'queretaro',
+                'querétaro',
+                'santiago de queretaro',
+                'santiago de querétaro',
+                'san juan del rio',
+                'san juan del río'
+            ],
+            'hidalgo' => [
+                'pachuca',
+                'pachuca de soto',
+                'tulancingo',
+                'tula de allende',
+                'tula'
+            ],
+            'aguascalientes' => [
+                'aguascalientes',
+                'jesus maria',
+                'jesús maría',
+                'calvillo'
+            ]
+        ];
+
+        // Buscar en qué estado está cada ciudad
+        $estado1 = null;
+        $estado2 = null;
+
+        foreach ($estadosCiudades as $estado => $ciudades) {
+            foreach ($ciudades as $ciudad) {
+                if (strpos($ciudad1, $ciudad) !== false || strpos($ciudad, $ciudad1) !== false) {
+                    $estado1 = $estado;
+                }
+                if (strpos($ciudad2, $ciudad) !== false || strpos($ciudad, $ciudad2) !== false) {
+                    $estado2 = $estado;
+                }
+            }
+        }
+
+        // Si ambas ciudades están en el mismo estado, coinciden
+        if ($estado1 && $estado2 && $estado1 === $estado2) {
+            Log::info('✅ Ciudades del mismo estado detectadas', [
+                'ciudad1' => $ciudad1,
+                'ciudad2' => $ciudad2,
+                'estado' => $estado1
+            ]);
+            return true;
         }
 
         return false;
