@@ -4117,6 +4117,44 @@ Responde SOLO con el JSON, sin explicaciones adicionales.";
     private function validarCiudadDelDocumento($analisisOpenAI, $campusId, $documentoDetectado, $nombreRequerido)
     {
         try {
+            // 🏛️ DOCUMENTOS EXENTOS DE VALIDACIÓN DE CIUDAD
+            // Estos documentos pueden ser firmados/expedidos en cualquier ciudad (notarías, oficinas centrales, etc.)
+            $documentosExentos = [
+                'uso legal del inmueble',
+                'escritura publica',
+                'escritura pública',
+                'titulo de propiedad',
+                'título de propiedad',
+                'acta constitutiva',
+                'poder notarial',
+                'constancia de situacion fiscal',
+                'constancia de situación fiscal',
+                'cedula de identificacion fiscal',
+                'cédula de identificación fiscal'
+            ];
+
+            $nombreRequeridoLower = strtolower($nombreRequerido);
+            $documentoDetectadoLower = strtolower($documentoDetectado);
+
+            // Verificar si el documento está exento de validación de ciudad
+            foreach ($documentosExentos as $docExento) {
+                if (
+                    strpos($nombreRequeridoLower, $docExento) !== false ||
+                    strpos($documentoDetectadoLower, $docExento) !== false
+                ) {
+                    Log::info('🏙️ ✅ Documento EXENTO de validación de ciudad', [
+                        'documento_detectado' => $documentoDetectado,
+                        'documento_requerido' => $nombreRequerido,
+                        'razon' => 'Documentos notariales/fiscales pueden expedirse en cualquier ciudad'
+                    ]);
+                    return [
+                        'coincide' => true,
+                        'nota' => 'Documento exento de validación de ciudad (notarial/fiscal)',
+                        'documento_exento' => true
+                    ];
+                }
+            }
+
             // Si no hay campusId, no podemos validar
             if (!$campusId) {
                 Log::info('🏙️ Sin campus ID - omitiendo validación de ciudad');
