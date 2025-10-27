@@ -4137,15 +4137,17 @@ Responde SOLO con el JSON, sin explicaciones adicionales.";
                 'campus_data' => $campus->toArray()
             ]);
 
-            // Obtener la ciudad del campus - usar el nombre del campus como ciudad
-            $ciudadCampus = $this->normalizarNombreCiudad($campus->Campus ?? '');
+            // Obtener la ciudad del campus - extraer la ciudad base del nombre del campus
+            // Ejemplos: "Zacatecas Fundadores" → "Zacatecas", "CID Durango" → "Durango"
+            $ciudadCampus = $this->extraerCiudadDelNombreCampus($campus->Campus ?? '');
 
             // Obtener las ciudades detectadas en el documento
             $ciudadesDocumento = $this->extraerCiudadesDelAnalisis($analisisOpenAI);
 
             Log::info('🏙️ VALIDACIÓN DE CIUDAD - INICIO', [
                 'campus_id' => $campusId,
-                'ciudad_campus' => $ciudadCampus,
+                'campus_nombre_completo' => $campus->Campus,
+                'ciudad_campus_extraida' => $ciudadCampus,
                 'ciudades_documento' => $ciudadesDocumento,
                 'documento_detectado' => $documentoDetectado,
                 'analisis_completo' => $analisisOpenAI // Debug: ver todo el análisis
@@ -4281,6 +4283,57 @@ Responde SOLO con el JSON, sin explicaciones adicionales.";
     /**
      * Verificar si dos ciudades coinciden (con tolerancia para variaciones)
      */
+    /**
+     * Extraer la ciudad base del nombre completo del campus
+     * Ejemplos:
+     * - "Zacatecas Fundadores" → "Zacatecas"
+     * - "CID Durango" → "Durango"
+     * - "Durango Santander" → "Durango"
+     * - "Zacatecas Ejecutivas" → "Zacatecas"
+     * - "CID Cd. Juárez" → "Cd. Juárez"
+     */
+    private function extraerCiudadDelNombreCampus($nombreCampus)
+    {
+        // Normalizar el nombre
+        $nombreCampus = trim($nombreCampus);
+
+        // Patrones para remover sufijos comunes
+        $sufijosARemover = [
+            'Fundadores',
+            'Santander',
+            'Ejecutivas',
+            'Virtual',
+            'Live',
+            'CID',
+            'Arena Lobo',
+            'Arena Lobos',
+            'Lobos',
+            'Centro de Convenciones',
+            'Forum',
+            'Libreria',
+            'Catedral'
+        ];
+
+        // Remover el prefijo "CID" si existe
+        if (stripos($nombreCampus, 'CID') === 0) {
+            $nombreCampus = trim(substr($nombreCampus, 3));
+        }
+
+        // Remover sufijos conocidos
+        foreach ($sufijosARemover as $sufijo) {
+            // Remover al final
+            if (stripos($nombreCampus, $sufijo) !== false) {
+                $nombreCampus = trim(str_ireplace($sufijo, '', $nombreCampus));
+            }
+        }
+
+        // Limpiar espacios múltiples
+        $nombreCampus = preg_replace('/\s+/', ' ', $nombreCampus);
+
+        // Normalizar el resultado
+        return $this->normalizarNombreCiudad($nombreCampus);
+    }
+
     private function ciudadesCoinciden($ciudad1, $ciudad2)
     {
         if (empty($ciudad1) || empty($ciudad2)) return false;
@@ -4296,10 +4349,35 @@ Responde SOLO con el JSON, sin explicaciones adicionales.";
         // Verificar coincidencias parciales para ciudades conocidas
         $variaciones = [
             'durango' => ['durango', 'dgo', 'ciudad de durango', 'victoria de durango'],
+            'zacatecas' => ['zacatecas', 'zac', 'ciudad de zacatecas'],
+            'chihuahua' => ['chihuahua', 'chih', 'ciudad de chihuahua'],
             'guadalajara' => ['guadalajara', 'gdl', 'zona metropolitana de guadalajara'],
             'monterrey' => ['monterrey', 'mty', 'zona metropolitana de monterrey'],
             'tijuana' => ['tijuana', 'tj'],
             'ciudad de mexico' => ['ciudad de mexico', 'cdmx', 'df', 'distrito federal', 'mexico df'],
+            'ciudad juarez' => ['ciudad juarez', 'cd juarez', 'cd. juarez', 'juarez'],
+            'ciudad obregon' => ['ciudad obregon', 'cd obregon', 'cd. obregon', 'obregon'],
+            'ciudad acuña' => ['ciudad acuna', 'cd acuna', 'cd. acuna', 'acuna'],
+            'hermosillo' => ['hermosillo', 'hmo'],
+            'culiacan' => ['culiacan', 'culiacán'],
+            'mazatlan' => ['mazatlan', 'mazatlán', 'mzt'],
+            'aguascalientes' => ['aguascalientes', 'ags'],
+            'saltillo' => ['saltillo', 'coahuila'],
+            'torreon' => ['torreon', 'torreón', 'laguna'],
+            'queretaro' => ['queretaro', 'querétaro', 'qro'],
+            'pachuca' => ['pachuca', 'hidalgo'],
+            'morelia' => ['morelia', 'michoacan', 'michoacán'],
+            'san luis potosi' => ['san luis potosi', 'san luis potosí', 'slp'],
+            'mexicali' => ['mexicali', 'baja california'],
+            'ensenada' => ['ensenada', 'bc'],
+            'nogales' => ['nogales', 'sonora'],
+            'los mochis' => ['los mochis', 'mochis'],
+            'guasave' => ['guasave', 'sinaloa'],
+            'xalapa' => ['xalapa', 'jalapa', 'veracruz'],
+            'fresnillo' => ['fresnillo', 'zacatecas'],
+            'santiago' => ['santiago', 'nuevo leon', 'nuevo león'],
+            'monclova' => ['monclova', 'coahuila'],
+            'piedras negras' => ['piedras negras', 'coahuila']
         ];
 
         foreach ($variaciones as $ciudadBase => $alias) {

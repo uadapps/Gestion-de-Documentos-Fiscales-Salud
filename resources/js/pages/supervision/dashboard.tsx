@@ -350,17 +350,19 @@ export default function SupervisionDashboard({
             console.warn(`⚠️ Se eliminaron ${campusData.length - campusUnicos.length} campus duplicados`);
         }
 
-        // SEGUNDO: Procesar los datos únicos con identificador único
+        // SEGUNDO: Procesar los datos únicos - usar hash del backend
         const resultados = campusUnicos.map((campus: any, index: number) => {
             globalKeyCounter++; // Incrementar contador global
             const campusId = String(campus.campus_id || campus.id || 'unknown');
             const campusIdFormatted = campusId.padStart(2, '0'); // Formato "01", "02", etc.
             const campusNombre = campus.campus_nombre || campus.nombre || 'Campus desconocido';
             const uniqueKey = `campus-${globalKeyCounter}-${campusIdFormatted}`;
-            const campusHash = generateCampusHash(campusNombre, campusId);
 
-            // Debug: Verificar que el hash se genera correctamente
-            console.log(`🔗 Campus: ${campusNombre} (ID: ${campusId}) → Hash: ${campusHash}`);
+            // USAR HASH DEL BACKEND si está disponible, sino generarlo
+            const campusHash = campus.campus_hash || generateCampusHash(campusNombre, campusId);
+
+            // Debug: Verificar que el hash se obtiene correctamente
+            console.log(`🔗 Campus: ${campusNombre} (ID: ${campusId}) → Hash: ${campusHash} (${campus.campus_hash ? 'del backend' : 'generado localmente'})`);
 
             const cumplimiento = campus.porcentaje_cumplimiento || campus.cumplimiento || 0;
             let estado: 'excelente' | 'bueno' | 'advertencia' | 'critico' = 'critico';
@@ -382,7 +384,7 @@ export default function SupervisionDashboard({
                 documentosVencidos: Math.max(0, (campus.total_documentos || 0) - vigentes),
                 usuariosActivos: campus.usuarios_activos || 1,
                 id_campus: campusIdFormatted, // Usar ID formateado
-                campusHash, // Añadir hash del campus
+                campusHash, // Usar hash del backend o generado
                 uniqueKey // Añadir la clave única al objeto
             };
         });
