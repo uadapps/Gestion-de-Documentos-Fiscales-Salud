@@ -574,8 +574,8 @@ class DocumentoController extends Controller
     public function subirArchivo(Request $request)
     {
         // CONFIGURAR LÍMITES PHP PARA ARCHIVOS GRANDES
-        ini_set('upload_max_filesize', '50M');
-        ini_set('post_max_size', '55M');
+        ini_set('upload_max_filesize', '100M');
+        ini_set('post_max_size', '105M');
         ini_set('memory_limit', '512M');
         ini_set('max_execution_time', '600');
         ini_set('max_input_time', '600');
@@ -636,7 +636,7 @@ class DocumentoController extends Controller
                 'documento_id' => 'required|exists:sug_documentos,id',
                 'campus_id' => 'required|string|max:3',
                 'carrera_id' => 'nullable|string|max:10', // ID_Especialidad para documentos médicos (nvarchar)
-                'archivo' => 'required|file|mimes:pdf|max:51200', // 50MB máximo
+                'archivo' => 'required|file|mimes:pdf|max:102400', // 100MB máximo
                 'folio_documento' => 'nullable|string|max:50',
                 'fecha_expedicion' => 'nullable|date',
                 'lugar_expedicion' => 'nullable|string|max:100',
