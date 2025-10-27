@@ -4127,6 +4127,7 @@ Responde SOLO con el JSON, sin explicaciones adicionales.";
                 'título de propiedad',
                 'acta constitutiva',
                 'poder notarial',
+                'contrato de arrendamiento', // Puede firmarse en cualquier ciudad
                 'constancia de situacion fiscal',
                 'constancia de situación fiscal',
                 'cedula de identificacion fiscal',
