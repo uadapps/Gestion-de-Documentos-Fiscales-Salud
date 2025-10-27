@@ -2512,11 +2512,14 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                                                 <SelectValue placeholder="Selecciona campus" />
                                                             </SelectTrigger>
                                                             <SelectContent>
-                                                                {campusDelDirector.map((campus) => (
-                                                                    <SelectItem key={campus.ID_Campus} value={campus.ID_Campus}>
-                                                                        {campus.Campus}
-                                                                    </SelectItem>
-                                                                ))}
+                                                                {[...campusDelDirector]
+                                                                    .sort((a, b) => a.Campus.localeCompare(b.Campus, 'es', { sensitivity: 'base' }))
+                                                                    .map((campus) => (
+                                                                        <SelectItem key={campus.ID_Campus} value={campus.ID_Campus}>
+                                                                            {campus.Campus}
+                                                                        </SelectItem>
+                                                                    ))
+                                                                }
                                                             </SelectContent>
                                                         </Select>
                                                     </div>
@@ -2581,11 +2584,14 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                                                 <SelectValue placeholder="Selecciona campus" />
                                                             </SelectTrigger>
                                                             <SelectContent>
-                                                                {campusDelDirector.map((campus) => (
-                                                                    <SelectItem key={campus.ID_Campus} value={campus.ID_Campus}>
-                                                                        {campus.Campus}
-                                                                    </SelectItem>
-                                                                ))}
+                                                                {[...campusDelDirector]
+                                                                    .sort((a, b) => a.Campus.localeCompare(b.Campus, 'es', { sensitivity: 'base' }))
+                                                                    .map((campus) => (
+                                                                        <SelectItem key={campus.ID_Campus} value={campus.ID_Campus}>
+                                                                            {campus.Campus}
+                                                                        </SelectItem>
+                                                                    ))
+                                                                }
                                                             </SelectContent>
                                                         </Select>
                                                     </div>
