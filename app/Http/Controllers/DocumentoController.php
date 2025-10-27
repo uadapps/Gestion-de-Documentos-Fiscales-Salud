@@ -358,11 +358,18 @@ class DocumentoController extends Controller
                             'fechaSubida' => $informacion->archivoActual->subido_en?->format('Y-m-d'),
                             'estado' => 'completado',
                             'progreso' => 100,
-                            // Información del análisis IA
+                            // Información del análisis IA (puede ser imprecisa)
                             'fechaExpedicion' => $fechaExpedicion,
                             'vigenciaDocumento' => $vigenciaDocumento,
                             'diasRestantesVigencia' => $diasRestantesVigencia,
-                            'validacionIA' => $validacionIA
+                            'validacionIA' => $validacionIA,
+                            // 🎯 Información de la BD (fuente de verdad - siempre priorizar sobre IA)
+                            'metadata' => [
+                                'folio_documento' => $informacion->folio_documento,
+                                'fecha_expedicion' => $informacion->fecha_expedicion,
+                                'vigencia_documento' => $informacion->vigencia_documento,
+                                'lugar_expedicion' => $informacion->lugar_expedicion
+                            ]
                         ]];
                     }
                 }

@@ -619,6 +619,7 @@ Instrucciones:
   * **Vigencia INTELIGENTE:** Busca específicamente con OCR:
     - **DOCUMENTO PERMANENTE SIN VIGENCIA:**
       * \"Uso legal del inmueble\" → vigencia_documento: \"2099-12-31\" (NO vence)
+      * \"Constancia de alineamiento y número oficial\" → vigencia_documento: \"2099-12-31\" (permanente SALVO que mencione vigencia)
       * \"Escritura pública\" → vigencia_documento: \"2099-12-31\"
       * \"Título de propiedad\" → vigencia_documento: \"2099-12-31\"
     - **DOCUMENTOS CON VIGENCIA (buscar explícitamente):**
@@ -627,6 +628,7 @@ Instrucciones:
       * \"válido por 18 meses\" → calcular desde fecha de expedición
       * Constancias de uso de suelo → SÍ tienen vigencia (buscar o calcular 1 año)
       * Licencias, permisos → SÍ tienen vigencia (buscar o calcular 1 año)
+      * **EXCEPCIÓN:** Si \"Constancia de alineamiento\" menciona vigencia explícita → usar esa vigencia en lugar de \"2099-12-31\"
     - Si es documento típico con vigencia sin mención explícita → calcular 1 año
     - Si NO encuentra vigencia Y es documento permanente → usar \"2099-12-31\"
 - Si el documento menciona una **vigencia**, úsala exactamente; si no, usar \"2099-12-31\" para indicar sin vencimiento.
@@ -787,6 +789,7 @@ Debes comparar el contenido del documento con el siguiente catálogo:
    - **VALIDACIÓN:** Si encuentras una fecha, verifica que tenga sentido (no futuro lejano, no pasado extremo)
    - **REGLAS ESPECIALES POR TIPO DE DOCUMENTO:**
      * **Uso legal del inmueble:** NUNCA tiene vigencia → usar \"2099-12-31\" (documento permanente)
+     * **Constancia de alineamiento y número oficial:** Documento permanente SALVO que mencione vigencia explícita → si NO menciona vigencia usar \"2099-12-31\", si SÍ menciona usar la fecha especificada
      * **Constancias/dictámenes de uso de suelo:** SÍ pueden tener vigencia → buscar explícitamente o calcular 1 año
      * **Constancia de compatibilidad urbanística:** SÍ puede tener vigencia → buscar explícitamente o calcular 1 año
      * **Escrituras y títulos de propiedad:** NUNCA tienen vigencia → usar \"2099-12-31\"
@@ -891,10 +894,12 @@ Devuelve **únicamente** un JSON con esta estructura exacta:
     * \"Escritura pública\" → vigencia_documento: \"2099-12-31\"
     * \"Título de propiedad\" → vigencia_documento: \"2099-12-31\"
     * \"Actas constitutivas\" → vigencia_documento: \"2099-12-31\"
-    * Estos documentos NO vencen nunca
+    * \"Constancia de alineamiento y número oficial\" → vigencia_documento: \"2099-12-31\" (permanente SALVO que el documento mencione vigencia explícita)
+    * Estos documentos NO vencen nunca SALVO que digan lo contrario
   - **DOCUMENTOS CON VIGENCIA EXPLÍCITA:**
     * Si menciona duración (\"2 años\", \"18 meses\") → calcular desde fecha expedición
     * Si menciona fecha específica (\"válido hasta 2026-12-31\") → usar esa fecha
+    * **IMPORTANTE:** Si \"Constancia de alineamiento\" menciona vigencia → usar la vigencia mencionada en lugar de \"2099-12-31\"
   - **DOCUMENTOS CON VIGENCIA IMPLÍCITA (calcular 1 año si no se especifica):**
     * Constancias/dictámenes de uso de suelo → SÍ tienen vigencia
     * Constancia de compatibilidad urbanística → SÍ tiene vigencia
