@@ -12,7 +12,7 @@ use Inertia\Inertia;
 class SupervisionController extends Controller
 {
     // Campus excluidos del dashboard de supervisión
-    private const CAMPUS_EXCLUIDOS = ['67', '25', '13', '17', '29', '35', '62'];
+    private const CAMPUS_EXCLUIDOS = [];
 
     /**
      * Función para sanitizar strings y prevenir errores UTF-8
@@ -92,13 +92,12 @@ class SupervisionController extends Controller
             Log::info('Debug - Campus activos encontrados', ['total' => $campuses->count()]);
 
             foreach ($campuses as $campus) {
-                // Convertir ID a formato sin padding para que coincida con el frontend
-                $campusIdSinPadding = (string) intval($campus->ID_Campus);
-                $generatedHash = $this->generateCampusHash($campus->Campus, $campusIdSinPadding);
+                // Usar ID original (puede tener padding) para coincidir con el frontend
+                $campusId = (string) $campus->ID_Campus;
+                $generatedHash = $this->generateCampusHash($campus->Campus, $campusId);
                 Log::info('Debug - Comparando hashes', [
                     'campus' => $campus->Campus,
-                    'id_original' => $campus->ID_Campus,
-                    'id_sin_padding' => $campusIdSinPadding,
+                    'id_campus' => $campusId,
                     'generated_hash' => $generatedHash,
                     'target_hash' => $campus_hash,
                     'match' => $generatedHash === $campus_hash
@@ -179,12 +178,11 @@ class SupervisionController extends Controller
         $campusHashes = [];
 
         foreach ($campuses as $campus) {
-            // Convertir ID a formato sin padding para que coincida con el frontend
-            $campusIdSinPadding = (string) intval($campus->ID_Campus);
-            $generatedHash = $this->generateCampusHash($campus->Campus, $campusIdSinPadding);
+            // Usar ID original (puede tener padding) para coincidir con el frontend
+            $campusId = (string) $campus->ID_Campus;
+            $generatedHash = $this->generateCampusHash($campus->Campus, $campusId);
             $campusHashes[] = [
                 'id' => $campus->ID_Campus,
-                'id_sin_padding' => $campusIdSinPadding,
                 'nombre' => $campus->Campus,
                 'hash' => $generatedHash,
                 'coincide' => $generatedHash === $hash
@@ -208,12 +206,11 @@ class SupervisionController extends Controller
         $result = [];
 
         foreach ($campuses as $campus) {
-            // Convertir ID a formato sin padding para que coincida con el frontend
-            $campusIdSinPadding = (string) intval($campus->ID_Campus);
-            $hash = $this->generateCampusHash($campus->Campus, $campusIdSinPadding);
+            // Usar ID original (puede tener padding) para coincidir con el frontend
+            $campusId = (string) $campus->ID_Campus;
+            $hash = $this->generateCampusHash($campus->Campus, $campusId);
             $result[] = [
-                'id_original' => $campus->ID_Campus,
-                'id_sin_padding' => $campusIdSinPadding,
+                'id' => $campus->ID_Campus,
                 'nombre' => $campus->Campus,
                 'hash' => $hash,
                 'url' => url("/supervision/{$hash}")
@@ -1071,6 +1068,10 @@ class SupervisionController extends Controller
                     ? round(($campus['total_aprobados'] / $campus['total_documentos']) * 100)
                     : 0;
 
+                // Generar hash del campus para navegación
+                $campusIdStr = (string) $campusId;
+                $campus['campus_hash'] = $this->generateCampusHash($campus['campus_nombre'], $campusIdStr);
+
                 // Determinar qué tipos de documentos tiene este campus
                 $campus['tiene_fiscales'] = $campus['fiscales']['total_documentos'] > 0;
                 $campus['tiene_medicos'] = $campus['medicos']['total_documentos'] > 0;
@@ -1080,7 +1081,8 @@ class SupervisionController extends Controller
                     Log::info("Campus con documentos encontrado: {$campus['campus_nombre']}", [
                         'total_documentos' => $campus['total_documentos'],
                         'fiscales' => $campus['fiscales']['total_documentos'],
-                        'medicos' => $campus['medicos']['total_documentos']
+                        'medicos' => $campus['medicos']['total_documentos'],
+                        'campus_hash' => $campus['campus_hash']
                     ]);
                 }
             }
