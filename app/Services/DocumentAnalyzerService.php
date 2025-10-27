@@ -617,10 +617,17 @@ Instrucciones:
     - Al final del documento donde aparezca ciudad y fecha
     - En sellos circulares y firmas oficiales usando OCR
   * **Vigencia INTELIGENTE:** Busca específicamente con OCR:
-    - \"válido hasta el 28 de agosto de 2026\" → vigencia_documento: \"2026-08-28\"
-    - \"vigencia de 2 años\" → calcular 24 meses desde fecha de expedición
-    - \"válido por 18 meses\" → calcular desde fecha de expedición
-    - Si es documento típico con vigencia (licencias, permisos) sin mención → calcular 1 año
+    - **DOCUMENTO PERMANENTE SIN VIGENCIA:**
+      * \"Uso legal del inmueble\" → vigencia_documento: \"2099-12-31\" (NO vence)
+      * \"Escritura pública\" → vigencia_documento: \"2099-12-31\"
+      * \"Título de propiedad\" → vigencia_documento: \"2099-12-31\"
+    - **DOCUMENTOS CON VIGENCIA (buscar explícitamente):**
+      * \"válido hasta el 28 de agosto de 2026\" → vigencia_documento: \"2026-08-28\"
+      * \"vigencia de 2 años\" → calcular 24 meses desde fecha de expedición
+      * \"válido por 18 meses\" → calcular desde fecha de expedición
+      * Constancias de uso de suelo → SÍ tienen vigencia (buscar o calcular 1 año)
+      * Licencias, permisos → SÍ tienen vigencia (buscar o calcular 1 año)
+    - Si es documento típico con vigencia sin mención explícita → calcular 1 año
     - Si NO encuentra vigencia Y es documento permanente → usar \"2099-12-31\"
 - Si el documento menciona una **vigencia**, úsala exactamente; si no, usar \"2099-12-31\" para indicar sin vencimiento.
 - Si aparece un **folio u oficio**, extrae el número usando OCR si está en sellos: \"folio_documento\" o \"oficio_documento\".
@@ -763,8 +770,10 @@ Debes comparar el contenido del documento con el siguiente catálogo:
      * \"vigente hasta [fecha]\"
    - **LÓGICA DE VIGENCIA INTELIGENTE:**
      * Si menciona duración específica (ej: \"2 años\", \"18 meses\") → calcular desde expedición
-     * Si NO menciona vigencia Y es documento típicamente con vigencia (licencias, permisos, constancias) → calcular 1 año
-     * Si NO menciona vigencia Y es documento permanente (títulos, actas) → usar \"2099-12-31\"
+     * **DOCUMENTO SIN VIGENCIA:** Si es \"Uso legal del inmueble\" → SIEMPRE usar \"2099-12-31\" (NO tiene vencimiento)
+     * **DOCUMENTOS DE USO DE SUELO:** Constancias/dictámenes de uso de suelo SÍ pueden tener vigencia → buscar explícitamente
+     * Si NO menciona vigencia Y es documento típicamente con vigencia (licencias, permisos, constancias de uso de suelo) → calcular 1 año
+     * Si NO menciona vigencia Y es documento permanente (títulos, actas, escrituras) → usar \"2099-12-31\"
    - **FORMATOS DE FECHA A RECONOCER:**
      * \"28 de agosto de 2025\" → \"2025-08-28\"
      * \"28/08/2025\" → \"2025-08-28\"
@@ -776,9 +785,13 @@ Debes comparar el contenido del documento con el siguiente catálogo:
      * enero=01, febrero=02, marzo=03, abril=04, mayo=05, junio=06
      * julio=07, agosto=08, septiembre=09, octubre=10, noviembre=11, diciembre=12
    - **VALIDACIÓN:** Si encuentras una fecha, verifica que tenga sentido (no futuro lejano, no pasado extremo)
-   - **SI NO HAY VIGENCIA EXPLÍCITA:**
-     * Si el documento NO menciona vigencia específica, usa \"2099-12-31\" para indicar \"sin vigencia definida\"
-     * Solo calcula 12 meses desde expedición si el documento explícitamente dice \"vigencia de 1 año\" o similar
+   - **REGLAS ESPECIALES POR TIPO DE DOCUMENTO:**
+     * **Uso legal del inmueble:** NUNCA tiene vigencia → usar \"2099-12-31\" (documento permanente)
+     * **Constancias/dictámenes de uso de suelo:** SÍ pueden tener vigencia → buscar explícitamente o calcular 1 año
+     * **Constancia de compatibilidad urbanística:** SÍ puede tener vigencia → buscar explícitamente o calcular 1 año
+     * **Escrituras y títulos de propiedad:** NUNCA tienen vigencia → usar \"2099-12-31\"
+     * **Licencias, permisos, autorizaciones:** SÍ tienen vigencia (buscar explícitamente o calcular 1 año)
+     * Si NO encuentra vigencia en documentos que típicamente la tienen → calcular 1 año desde expedición
 
 5️⃣ **FIRMANTE Y ENTIDAD EMISORA (CON OCR)**
    - **USA OCR** para leer nombres y cargos en firmas, sellos y membretes
@@ -872,10 +885,21 @@ Devuelve **únicamente** un JSON con esta estructura exacta:
   - En \"nombre_detectado\" pon el nombre EXACTO que aparece en el documento
   - Ejemplos: \"Constancia de Compatibilidad Urbanística\", \"Licencia de Construcción\", \"Dictamen de Uso de Suelo\"
   - NO uses palabras genéricas como \"string\" o \"documento\"
-- **⏰ VIGENCIA INTELIGENTE:**
-  - Si menciona duración (\"2 años\", \"18 meses\") → calcular desde fecha expedición
-  - Si es documento típico con vigencia (licencias, permisos) sin mención → asumir 1 año
-  - Si es documento permanente (títulos, actas) → usar \"2099-12-31\"
+- **⏰ VIGENCIA INTELIGENTE - REGLAS CRÍTICAS:**
+  - **DOCUMENTOS PERMANENTES (SIN VIGENCIA):**
+    * \"Uso legal del inmueble\" → vigencia_documento: \"2099-12-31\" (documento permanente)
+    * \"Escritura pública\" → vigencia_documento: \"2099-12-31\"
+    * \"Título de propiedad\" → vigencia_documento: \"2099-12-31\"
+    * \"Actas constitutivas\" → vigencia_documento: \"2099-12-31\"
+    * Estos documentos NO vencen nunca
+  - **DOCUMENTOS CON VIGENCIA EXPLÍCITA:**
+    * Si menciona duración (\"2 años\", \"18 meses\") → calcular desde fecha expedición
+    * Si menciona fecha específica (\"válido hasta 2026-12-31\") → usar esa fecha
+  - **DOCUMENTOS CON VIGENCIA IMPLÍCITA (calcular 1 año si no se especifica):**
+    * Constancias/dictámenes de uso de suelo → SÍ tienen vigencia
+    * Constancia de compatibilidad urbanística → SÍ tiene vigencia
+    * Licencias, permisos, autorizaciones → SÍ tienen vigencia
+    * Si NO mencionan vigencia explícita → asumir 1 año desde expedición
 - **FECHAS EXACTAS Y PRECISAS:**
   - Todas las fechas deben estar en formato YYYY-MM-DD
   - USA OCR para leer fechas en sellos circulares, firmas y stamps oficiales
@@ -883,14 +907,16 @@ Devuelve **únicamente** un JSON con esta estructura exacta:
   - Lee TODO el texto buscando fechas, especialmente al final donde suele aparecer lugar y fecha
   - Si encuentras \"Zacatecas, 28 de agosto de 2025\" → \"2025-08-28\"
   - Si solo ves año, usa null para el campo de fecha específica
-- **Calcula `dias_restantes_vigencia`** comparando la fecha de hoy (2025-10-22) con la vigencia.
+- **Calcula `dias_restantes_vigencia`** comparando la fecha de hoy (2025-10-27) con la vigencia.
 - **Determina `estado_documento`:**
   - \"vigente\" → aún dentro de vigencia
   - \"por_vencer\" → faltan menos de 30 días
   - \"vencido\" → vigencia ya pasada
-  - \"pendiente\" → sin vigencia definida (usar fecha 2099-12-31)
+  - \"pendiente\" → sin vigencia definida O documento permanente (fecha 2099-12-31)
 - **PRECISIÓN CRÍTICA:** Si no encuentras una fecha específica en el documento, usa `null` en lugar de inventarla
-- **VIGENCIA SIN DEFINIR:** Si no hay vigencia explícita, usar \"2099-12-31\" para indicar documento sin vencimiento
+- **VIGENCIA SIN DEFINIR:**
+  - Para documentos de uso legal o permanentes → usar \"2099-12-31\"
+  - Para documentos que típicamente tienen vigencia pero no la mencionan → calcular 1 año
 - Si el documento está incompleto o ilegible, deja los campos en `null` pero conserva la estructura.
 - **No incluyas texto explicativo, markdown, ni comentarios fuera del JSON.**
         ";
