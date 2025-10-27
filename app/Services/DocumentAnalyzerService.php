@@ -1105,8 +1105,8 @@ Devuelve **únicamente** un JSON con esta estructura exacta:
                 'documento_requerido_id' => $documentoRequeridoId
             ]);
 
-            // 🚨 VALIDACIÓN ESTRICTA: Si los niveles son diferentes entre estatal y municipal, rechazar
-            if ($this->sonNivelesIncompatibles($nivelDetectado, $nivelRequerido)) {
+            // 🚨 VALIDACIÓN DE NIVELES: Verificar compatibilidad entre estatal y municipal
+            if ($this->sonNivelesIncompatibles($nivelDetectado, $nivelRequerido, $documentoDetectado, $nombreRequerido)) {
                 return [
                     'coincide' => false,
                     'porcentaje_coincidencia' => 0,
@@ -1216,7 +1216,11 @@ Devuelve **únicamente** un JSON con esta estructura exacta:
     /**
      * Verifica si dos niveles de gobierno son incompatibles entre sí
      */
-    private function sonNivelesIncompatibles($nivelDetectado, $nivelRequerido)
+    /**
+     * Verifica si dos niveles de gobierno son incompatibles entre sí
+     * Con excepciones para documentos que pueden ser estatal o municipal
+     */
+    private function sonNivelesIncompatibles($nivelDetectado, $nivelRequerido, $documentoDetectado = '', $nombreRequerido = '')
     {
         $nivelDetectado = strtolower(trim($nivelDetectado));
         $nivelRequerido = strtolower(trim($nivelRequerido));
@@ -1226,15 +1230,63 @@ Devuelve **únicamente** un JSON con esta estructura exacta:
             return false;
         }
 
-        // Definir niveles incompatibles específicamente
+        // 🔥 EXCEPCIONES: Documentos que pueden ser ESTATAL o MUNICIPAL indistintamente
+        $documentosFlexibles = [
+            'proteccion civil',
+            'protección civil',
+            'visto bueno',
+            'opinion favorable',
+            'opinión favorable',
+            'dictamen',
+            'dictamen aprobatorio',
+            'programa interno',
+            'seguridad',
+            'bomberos',
+            'uso de suelo',  // Puede ser estatal o municipal
+            'impacto ambiental',
+            'factibilidad'
+        ];
+
+        $documentoDetectadoLower = strtolower($documentoDetectado);
+        $nombreRequeridoLower = strtolower($nombreRequerido);
+
+        // Verificar si alguno de los documentos es flexible
+        foreach ($documentosFlexibles as $docFlexible) {
+            if (
+                strpos($documentoDetectadoLower, $docFlexible) !== false ||
+                strpos($nombreRequeridoLower, $docFlexible) !== false
+            ) {
+                Log::info('✅ Documento FLEXIBLE detectado - aceptando nivel estatal/municipal', [
+                    'documento_detectado' => $documentoDetectado,
+                    'nombre_requerido' => $nombreRequerido,
+                    'nivel_detectado' => $nivelDetectado,
+                    'nivel_requerido' => $nivelRequerido,
+                    'documento_flexible' => $docFlexible
+                ]);
+                return false; // NO son incompatibles
+            }
+        }
+
+        // Definir niveles incompatibles específicamente (solo para documentos NO flexibles)
         $incompatibilidades = [
             'estatal' => ['municipal'],
             'municipal' => ['estatal'],
             // Agregar más incompatibilidades según sea necesario
         ];
 
-        return isset($incompatibilidades[$nivelDetectado]) &&
-               in_array($nivelRequerido, $incompatibilidades[$nivelDetectado]);
+        $sonIncompatibles = isset($incompatibilidades[$nivelDetectado]) &&
+                           in_array($nivelRequerido, $incompatibilidades[$nivelDetectado]);
+
+        if ($sonIncompatibles) {
+            Log::warning('⚠️ Niveles incompatibles detectados', [
+                'nivel_detectado' => $nivelDetectado,
+                'nivel_requerido' => $nivelRequerido,
+                'documento_detectado' => $documentoDetectado,
+                'nombre_requerido' => $nombreRequerido
+            ]);
+        }
+
+        return $sonIncompatibles;
     }
 
     /**
