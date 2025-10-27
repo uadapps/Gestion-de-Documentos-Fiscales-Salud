@@ -1328,7 +1328,7 @@ Devuelve **únicamente** un JSON con esta estructura exacta:
                 'dictamen estructural',
                 'responsiva estructural'
             ],
-            
+
             // Grupo: Protección Civil
             'proteccion_civil' => [
                 'visto bueno de proteccion civil',
