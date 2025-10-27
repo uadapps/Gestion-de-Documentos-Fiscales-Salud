@@ -108,7 +108,7 @@ class DocumentoController extends Controller
                 INNER JOIN RVOE R ON R.Id_Campus = E.ID_Campus AND R.Id_Especialidad = E.ID_Especialidad
                 INNER JOIN Grupo G ON G.ID_RVOE = R.Id_RVOE
                 INNER JOIN Ciclo_Escolar CE ON CE.Id_CEscolar = G.ID_Periodo
-                WHERE (e.descripcion LIKE '%MEDIC%' OR E.Descripcion LIKE '%ENFER%' OR E.Descripcion LIKE '%Méd%' OR E.Descripcion LIKE '%NUTRI%' OR E.Descripcion LIKE '%FISIO%' OR E.Descripcion LIKE '%ODONTO%' OR E.Descripcion LIKE '%COSME%')
+                WHERE (e.descripcion LIKE '%MEDIC%' OR E.Descripcion LIKE '%ENFER%' OR E.Descripcion LIKE '%Méd%' OR E.Descripcion LIKE '%psi%' OR E.Descripcion LIKE '%NUTRI%' OR E.Descripcion LIKE '%FISIO%' OR E.Descripcion LIKE '%ODONTO%' OR E.Descripcion LIKE '%COSME%')
                     AND E.Descripcion NOT LIKE '%DIPLO%' AND E.Descripcion NOT LIKE '%MAES%'
                     AND E.Activada = 1 AND c.Activo = 1 AND YEAR(CE.Fecha_Inicio) >= YEAR(GETDATE())
                     AND c.ID_Campus = ?
@@ -146,7 +146,7 @@ class DocumentoController extends Controller
                 INNER JOIN RVOE R ON R.Id_Campus = E.ID_Campus AND R.Id_Especialidad = E.ID_Especialidad
                 INNER JOIN Grupo G ON G.ID_RVOE = R.Id_RVOE
                 INNER JOIN Ciclo_Escolar CE ON CE.Id_CEscolar = G.ID_Periodo
-                WHERE (e.descripcion LIKE '%MEDIC%' OR E.Descripcion LIKE '%ENFER%' OR E.Descripcion LIKE '%Méd%' OR E.Descripcion LIKE '%NUTRI%' OR E.Descripcion LIKE '%FISIO%' OR E.Descripcion LIKE '%ODONTO%' OR E.Descripcion LIKE '%COSME%')
+                WHERE (e.descripcion LIKE '%MEDIC%' OR E.Descripcion LIKE '%ENFER%' OR E.Descripcion LIKE '%Méd%' OR E.Descripcion LIKE '%psi%' OR E.Descripcion LIKE '%NUTRI%' OR E.Descripcion LIKE '%FISIO%' OR E.Descripcion LIKE '%ODONTO%' OR E.Descripcion LIKE '%COSME%')
                     AND E.Descripcion NOT LIKE '%DIPLO%' AND E.Descripcion NOT LIKE '%MAES%'
                     AND E.Activada = 1 AND c.Activo = 1 AND YEAR(CE.Fecha_Inicio) >= YEAR(GETDATE())
                     AND c.ID_Campus = ?
