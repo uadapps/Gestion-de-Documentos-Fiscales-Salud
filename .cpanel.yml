@@ -39,7 +39,6 @@ deployment:
     - /bin/cp composer.lock $APPPATH/
     - /bin/cp composer.phar $APPPATH/ 2>/dev/null || true
     - /bin/cp artisan $APPPATH/
-    - /bin/cp .env.example $APPPATH/
     - /bin/cp package.json $APPPATH/ 2>/dev/null || true
     - /bin/cp pnpm-lock.yaml $APPPATH/ 2>/dev/null || true
     - /bin/cp vite.config.ts $APPPATH/ 2>/dev/null || true
