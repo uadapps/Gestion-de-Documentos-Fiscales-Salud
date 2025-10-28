@@ -81,6 +81,8 @@ interface ArchivoSubido {
         fecha_expedicion?: string;
         vigencia_documento?: string;
         lugar_expedicion?: string;
+        // 🔧 Estado real de la tabla de BD (no del JSON)
+        estado_bd?: string;
     };
 }
 
@@ -499,7 +501,9 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
 
         // Si el documento está en estado 'vigente' (aprobado por administrador), NO se puede subir más
         // EXCEPTO si está dinámicamente caducado, entonces SÍ se puede subir para renovarlo
-        const estadoNormalizado = normalizeEstado(documento.estado);
+        // 🔧 USAR ESTADO REAL DE LA BD
+        const estadoReal = getEstadoRealDocumento(documento);
+        const estadoNormalizado = normalizeEstado(estadoReal);
         if (estadoNormalizado === 'vigente' && !isDocumentoCaducado(documento)) return false;
 
         // Si el documento está caducado (por estado o dinámicamente), SIEMPRE se puede subir
@@ -512,7 +516,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
         );
 
         // Si hay un archivo aprobado, NO se puede subir más (a menos que sea rechazado por admin)
-        if (archivoAprobado && documento.estado !== 'rechazado') return false;
+        if (archivoAprobado && estadoReal !== 'rechazado') return false;
 
         // En cualquier otro caso (archivos rechazados, errores, o documento rechazado), se puede subir
         return true;
@@ -1029,8 +1033,11 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
             return "No hay archivos subidos para este documento";
         }
 
+        // 🔧 USAR ESTADO REAL DE LA BD
+        const estadoReal = getEstadoRealDocumento(documento);
+        const estadoNormalizado = normalizeEstado(estadoReal);
+
         // Si el documento está rechazado por administrador, permitir nueva subida
-        const estadoNormalizado = normalizeEstado(documento.estado);
         if (estadoNormalizado === 'rechazado') {
             return "El documento fue rechazado por un administrador. Puede subir un nuevo archivo.";
         }
@@ -1695,7 +1702,9 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                             folio_documento: data.metadata.folio_documento,
                                             fecha_expedicion: data.metadata.fecha_expedicion,
                                             vigencia_documento: data.metadata.vigencia_documento,
-                                            lugar_expedicion: data.metadata.lugar_expedicion
+                                            lugar_expedicion: data.metadata.lugar_expedicion,
+                                            // 🔧 ESTADO DE LA TABLA DE BD (no del JSON)
+                                            estado_bd: data.metadata.estado_bd || data.estado_bd
                                         } : undefined
                                     };
 
@@ -1999,7 +2008,9 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
 
     // Función para determinar si un documento está realmente caducado basado en la fecha
     const isDocumentoCaducado = (documento: DocumentoRequerido): boolean => {
-        const estadoNormalizado = normalizeEstado(documento.estado);
+        // 🔧 USAR ESTADO REAL DE LA BD
+        const estadoReal = getEstadoRealDocumento(documento);
+        const estadoNormalizado = normalizeEstado(estadoReal);
 
         // Si ya está marcado como caducado en la BD
         if (estadoNormalizado === 'caducado') {
@@ -2022,33 +2033,71 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
         return esCaducadoDinamico;
     };
 
-    // Función para obtener el color del estado considerando caducidad dinámica
-    const getEstadoColorDinamico = (documento: DocumentoRequerido): string => {
-        if (isDocumentoCaducado(documento)) {
-            return 'bg-orange-100 text-orange-800 border-orange-300';
-        }
-        const estadoNormalizado = normalizeEstado(documento.estado);
-        return getEstadoColor(estadoNormalizado);
-    };
+// Función para obtener el color del estado considerando caducidad dinámica Y estado de BD
+const getEstadoColorDinamico = (documento: DocumentoRequerido): string => {
+    // 🔧 PRIORIZAR ESTADO DE LA BD sobre el JSON
+    const estadoReal = getEstadoRealDocumento(documento);
 
-    // Función para obtener el ícono del estado considerando caducidad dinámica
-    const getEstadoIconDinamico = (documento: DocumentoRequerido) => {
-        if (isDocumentoCaducado(documento)) {
-            return <Calendar className="w-3 h-3" />;
-        }
-        const estadoNormalizado = normalizeEstado(documento.estado);
-        return getEstadoIcon(estadoNormalizado);
-    };
+    if (isDocumentoCaducado(documento)) {
+        return 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-400 border-orange-300 dark:border-orange-800';
+    }
+    const estadoNormalizado = normalizeEstado(estadoReal);
+    return getEstadoColor(estadoNormalizado);
+};
 
-    // Función para obtener el texto del estado considerando caducidad dinámica
-    const getEstadoTextoDinamico = (documento: DocumentoRequerido): string => {
-        if (isDocumentoCaducado(documento)) {
-            return 'caducado';
-        }
-        return normalizeEstado(documento.estado);
-    };
+// Función para obtener el ícono del estado considerando caducidad dinámica Y estado de BD
+const getEstadoIconDinamico = (documento: DocumentoRequerido) => {
+    if (isDocumentoCaducado(documento)) {
+        return <Calendar className="w-3 h-3" />;
+    }
+    // 🔧 PRIORIZAR ESTADO DE LA BD sobre el JSON
+    const estadoReal = getEstadoRealDocumento(documento);
+    const estadoNormalizado = normalizeEstado(estadoReal);
+    return getEstadoIcon(estadoNormalizado);
+};
 
-    // Filtrar documentos
+// Función para obtener el texto del estado considerando caducidad dinámica Y estado de BD
+const getEstadoTextoDinamico = (documento: DocumentoRequerido): string => {
+    if (isDocumentoCaducado(documento)) {
+        return 'caducado';
+    }
+    // 🔧 PRIORIZAR ESTADO DE LA BD sobre el JSON
+    const estadoReal = getEstadoRealDocumento(documento);
+    return normalizeEstado(estadoReal);
+};
+
+// 🔧 NUEVA FUNCIÓN: Obtener el estado real del documento priorizando BD sobre JSON
+const getEstadoRealDocumento = (documento: DocumentoRequerido): string => {
+    // Buscar archivos que tengan metadata con estado de BD
+    const archivos = getArchivosSeguro(documento);
+    console.log(`🔍 Debug ${documento.concepto}:`, {
+        total_archivos: archivos.length,
+        archivos: archivos.map(a => ({
+            id: a.id,
+            nombre: a.nombre,
+            metadata: a.metadata,
+            tiene_estado_bd: !!a.metadata?.estado_bd
+        }))
+    });
+
+    const archivosConEstadoBD = archivos.filter(archivo =>
+        archivo.metadata?.estado_bd
+    );
+
+    if (archivosConEstadoBD.length > 0) {
+        // Si hay archivos con estado de BD, usar el más reciente
+        const archivoMasReciente = archivosConEstadoBD.sort((a, b) =>
+            new Date(b.fechaSubida).getTime() - new Date(a.fechaSubida).getTime()
+        )[0];
+
+        console.log(`🔧 Usando estado de BD para ${documento.concepto}:`, archivoMasReciente.metadata?.estado_bd);
+        return archivoMasReciente.metadata?.estado_bd || documento.estado;
+    }
+
+    // Fallback: usar estado del documento JSON
+    console.log(`📄 Usando estado JSON para ${documento.concepto}:`, documento.estado);
+    return documento.estado;
+};    // Filtrar documentos
     const documentosFiltrados = documentos.filter(doc => {
         const coincideBusqueda = doc.concepto.toLowerCase().includes(busqueda.toLowerCase()) ||
             doc.descripcion.toLowerCase().includes(busqueda.toLowerCase());
@@ -3126,7 +3175,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                                 )}
 
                                                 {/* Zona de subida - No mostrar si está vigente (pero sí si está caducado) */}
-                                                {(normalizeEstado(selectedDocumento.estado) !== 'vigente' || isDocumentoCaducado(selectedDocumento)) && puedeSubirArchivos(selectedDocumento) ? (
+                                                {(normalizeEstado(getEstadoRealDocumento(selectedDocumento)) !== 'vigente' || isDocumentoCaducado(selectedDocumento)) && puedeSubirArchivos(selectedDocumento) ? (
                                                     <div
                                                         className={`
                                                 border-2 border-dashed rounded-lg p-8 text-center transition-colors
@@ -3174,22 +3223,22 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                                 ) : (
                                                     <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 text-center bg-gray-50 dark:bg-gray-800/50">
                                                         <div className="flex items-center justify-center mb-4">
-                                                            {(normalizeEstado(selectedDocumento.estado) === 'vigente' && !isDocumentoCaducado(selectedDocumento)) ? (
+                                                            {(normalizeEstado(getEstadoRealDocumento(selectedDocumento)) === 'vigente' && !isDocumentoCaducado(selectedDocumento)) ? (
                                                                 <CheckCircle className="w-12 h-12 text-green-600 dark:text-green-400" />
-                                                            ) : normalizeEstado(selectedDocumento.estado) === 'rechazado' ? (
+                                                            ) : normalizeEstado(getEstadoRealDocumento(selectedDocumento)) === 'rechazado' ? (
                                                                 <AlertCircle className="w-12 h-12 text-red-600 dark:text-red-400" />
-                                                            ) : (normalizeEstado(selectedDocumento.estado) === 'caducado' || isDocumentoCaducado(selectedDocumento)) ? (
+                                                            ) : (normalizeEstado(getEstadoRealDocumento(selectedDocumento)) === 'caducado' || isDocumentoCaducado(selectedDocumento)) ? (
                                                                 <Calendar className="w-12 h-12 text-orange-600 dark:text-orange-400" />
                                                             ) : (
                                                                 <AlertCircle className="w-12 h-12 text-gray-400" />
                                                             )}
                                                         </div>
                                                         <h3 className="font-semibold mb-2 text-gray-700 dark:text-gray-200">
-                                                            {(normalizeEstado(selectedDocumento.estado) === 'vigente' && !isDocumentoCaducado(selectedDocumento))
+                                                            {(normalizeEstado(getEstadoRealDocumento(selectedDocumento)) === 'vigente' && !isDocumentoCaducado(selectedDocumento))
                                                                 ? 'Documento Aprobado'
-                                                                : normalizeEstado(selectedDocumento.estado) === 'rechazado'
+                                                                : normalizeEstado(getEstadoRealDocumento(selectedDocumento)) === 'rechazado'
                                                                     ? 'Documento Rechazado - Puede Subir Nuevo'
-                                                                    : (normalizeEstado(selectedDocumento.estado) === 'caducado' || isDocumentoCaducado(selectedDocumento))
+                                                                    : (normalizeEstado(getEstadoRealDocumento(selectedDocumento)) === 'caducado' || isDocumentoCaducado(selectedDocumento))
                                                                         ? 'Documento Caducado - Puede Subir Nuevo'
                                                                         : 'Subida Bloqueada'
                                                             }
@@ -3197,7 +3246,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                                         <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
                                                             {getMensajeEstado(selectedDocumento)}
                                                         </p>
-                                                        {(normalizeEstado(selectedDocumento.estado) === 'vigente' && !isDocumentoCaducado(selectedDocumento)) && (
+                                                        {(normalizeEstado(getEstadoRealDocumento(selectedDocumento)) === 'vigente' && !isDocumentoCaducado(selectedDocumento)) && (
                                                             <div className="bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-3 text-green-800 dark:text-green-400">
                                                                 <p className="text-sm font-medium">
                                                                     Este documento ha sido validado y aprobado.
@@ -3207,7 +3256,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                                                 </p>
                                                             </div>
                                                         )}
-                                                        {normalizeEstado(selectedDocumento.estado) === 'rechazado' && (
+                                                        {normalizeEstado(getEstadoRealDocumento(selectedDocumento)) === 'rechazado' && (
                                                             <div className="bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3 text-red-800 dark:text-red-400">
                                                                 <p className="text-sm font-medium">
                                                                     Este documento fue rechazado por un administrador.
@@ -3217,7 +3266,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                                                 </p>
                                                             </div>
                                                         )}
-                                                        {(normalizeEstado(selectedDocumento.estado) === 'caducado' || isDocumentoCaducado(selectedDocumento)) && (
+                                                        {(normalizeEstado(getEstadoRealDocumento(selectedDocumento)) === 'caducado' || isDocumentoCaducado(selectedDocumento)) && (
                                                             <div className="bg-orange-100 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-800 rounded-lg p-3 text-orange-800 dark:text-orange-400">
                                                                 <p className="text-sm font-medium">
                                                                     Este documento ha caducado por vencimiento de fecha.

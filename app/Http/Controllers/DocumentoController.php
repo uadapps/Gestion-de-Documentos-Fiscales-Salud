@@ -249,7 +249,7 @@ class DocumentoController extends Controller
                         ]);
                     }
 
-                    $informacion = $query->with(['archivoActual', 'archivos'])->first();
+                    $informacion = $query->first();
 
                     if ($informacion) {
                         Log::info('Información encontrada', [
@@ -285,7 +285,20 @@ class DocumentoController extends Controller
                 if ($informacion) {
                     $estado = $informacion->estado ?? 'pendiente';
 
-                    if ($informacion->archivoActual) {
+                    // 🔄 OBTENER TODOS LOS ARCHIVOS ACTIVOS (no solo el actual)
+                    $archivosActivos = SugDocumentoArchivo::where('documento_informacion_id', $informacion->id)
+                        ->where('es_actual', true)
+                        ->orderBy('subido_en', 'desc')
+                        ->get();
+
+                    Log::info('Archivos activos encontrados', [
+                        'documento_id' => $doc->id,
+                        'informacion_id' => $informacion->id,
+                        'total_archivos_activos' => $archivosActivos->count()
+                    ]);
+
+                    // Procesar cada archivo activo
+                    foreach ($archivosActivos as $archivo) {
                         // Obtener análisis si existe
                         $analisis = null;
                         $fechaExpedicion = null;
@@ -324,9 +337,9 @@ class DocumentoController extends Controller
                         }
 
                         // Si no hay metadata_json, intentar con analisis_completo del archivo como fallback
-                        if (!$fechaExpedicion && $informacion->archivoActual && $informacion->archivoActual->analisis_completo) {
+                        if (!$fechaExpedicion && $archivo->analisis_completo) {
                             try {
-                                $analisis = json_decode($informacion->archivoActual->analisis_completo, true);
+                                $analisis = json_decode($archivo->analisis_completo, true);
 
                                 // Extraer fechas del análisis
                                 $fechaExpedicion = $analisis['documento']['fecha_expedicion'] ?? null;
@@ -344,18 +357,19 @@ class DocumentoController extends Controller
                                 }
                             } catch (\Exception $e) {
                                 Log::warning('Error procesando análisis del archivo', [
-                                    'archivo_id' => $informacion->archivoActual->id,
+                                    'archivo_id' => $archivo->id,
                                     'error' => $e->getMessage()
                                 ]);
                             }
                         }
 
-                        $archivos = [[
-                            'id' => $informacion->archivoActual->id,
-                            'file_hash_sha256' => $informacion->archivoActual->file_hash_sha256,
-                            'nombre' => basename($informacion->archivoActual->archivo_pdf),
-                            'tamaño' => $informacion->archivoActual->file_size_bytes,
-                            'fechaSubida' => $informacion->archivoActual->subido_en?->format('Y-m-d'),
+                        // Agregar archivo al array (no reemplazar, agregar)
+                        $archivos[] = [
+                            'id' => $archivo->id,
+                            'file_hash_sha256' => $archivo->file_hash_sha256,
+                            'nombre' => basename($archivo->archivo_pdf),
+                            'tamaño' => $archivo->file_size_bytes,
+                            'fechaSubida' => $archivo->subido_en?->format('Y-m-d'),
                             'estado' => 'completado',
                             'progreso' => 100,
                             // Información del análisis IA (puede ser imprecisa)
@@ -368,9 +382,20 @@ class DocumentoController extends Controller
                                 'folio_documento' => $informacion->folio_documento,
                                 'fecha_expedicion' => $informacion->fecha_expedicion,
                                 'vigencia_documento' => $informacion->vigencia_documento,
-                                'lugar_expedicion' => $informacion->lugar_expedicion
+                                'lugar_expedicion' => $informacion->lugar_expedicion,
+                                // 🔧 AGREGAR ESTADO DE LA BD PARA QUE EL FRONTEND LO PRIORICE
+                                'estado_bd' => $informacion->estado
                             ]
-                        ]];
+                        ];
+
+                        // 🔍 DEBUG: Log del estado enviado
+                        Log::info('Estado enviado al frontend', [
+                            'documento' => $doc->nombre,
+                            'campus_id' => $campusId,
+                            'archivo_id' => $archivo->id,
+                            'estado_informacion' => $informacion->estado,
+                            'estado_bd_enviado' => $informacion->estado
+                        ]);
                     }
                 }
 
@@ -763,12 +788,34 @@ class DocumentoController extends Controller
                 Log::info('Información actualizada');
             }
 
-            Log::info('Desactivando archivos anteriores...');
-            // Desactivar archivos anteriores
-            SugDocumentoArchivo::where('documento_informacion_id', $informacion->id)
-                ->update(['es_actual' => false]);
+            Log::info('Desactivando solo archivos rechazados anteriores...');
+            // Desactivar SOLO archivos anteriores si su información indica rechazo
+            // Mantener activos los archivos vigentes/aprobados
+            $archivosAnteriores = SugDocumentoArchivo::where('documento_informacion_id', $informacion->id)->get();
 
-            Log::info('Creando nuevo archivo...');
+            foreach ($archivosAnteriores as $archivoAnterior) {
+                // Verificar si el archivo tiene análisis de rechazo en metadata_json
+                $metadataJson = $informacion->metadata_json ?? null;
+                $analisis = $metadataJson ? json_decode($metadataJson, true) : null;
+
+                // Desactivar si:
+                // 1. El estado de la información es rechazado
+                // 2. El análisis indica que no coincide (validación falló)
+                // 3. No hay análisis (archivos sin procesar)
+                $esRechazado = $informacion->estado === 'rechazado' ||
+                              ($analisis && isset($analisis['validacion']) && !$analisis['validacion']['coincide']) ||
+                              is_null($analisis);
+
+                if ($esRechazado) {
+                    $archivoAnterior->update(['es_actual' => false]);
+                    Log::info('Archivo anterior desactivado', [
+                        'archivo_id' => $archivoAnterior->id,
+                        'razon' => 'rechazado o sin análisis'
+                    ]);
+                }
+            }
+
+            Log::info('Creando nuevo archivo (manteniendo archivos aprobados activos)...');
             // Crear nuevo archivo
             $nuevoArchivo = SugDocumentoArchivo::create([
                 'documento_informacion_id' => $informacion->id,
