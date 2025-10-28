@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\CampusContador;
 use App\Models\campus_model;
-use App\Models\empleado_model;
 use App\Models\usuario_model;
 use App\Models\SugDocumento;
 use App\Models\SugDocumentoInformacion;

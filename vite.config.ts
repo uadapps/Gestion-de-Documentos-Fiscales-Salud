@@ -49,22 +49,12 @@ export default defineConfig({
         }),
         react(),
         tailwindcss(),
-        wayfinder({
-            formVariants: true,
-            // Detectar automáticamente la ruta de PHP para compatibilidad con diferentes entornos
-            command: `${getPhpCommand()} artisan wayfinder:generate`,
-        }),
+        // wayfinder({
+        //     // Usar comando personalizado con detección de PHP
+        //     command: `${getPhpCommand()} artisan wayfinder:generate`,
+        // }),
     ],
     esbuild: {
         jsx: 'automatic',
     },
-    server: {
-        // Configuración del servidor de desarrollo
-        host: '127.0.0.1',
-        port: 5173,
-        hmr: {
-            host: '127.0.0.1',
-            port: 5173
-        }
-    }
 });
