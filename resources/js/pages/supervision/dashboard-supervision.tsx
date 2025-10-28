@@ -164,16 +164,15 @@ export default function DashboardSupervision() {
         return Math.min(Math.max(alturaCalculada, alturaMinima), alturaMaxima);
     };
 
-    // Calcular altura dinámica para la gráfica detallada
+    // Calcular altura dinámica para la gráfica detallada - mostrar todos los campus
     const getGraficaDetalladaHeight = () => {
         const cantidad = campusParaDetallada.length;
-        // Altura más compacta: 30px por campus + margen
-        const alturaPorCampus = 30;
-        const alturaMinima = 600;
-        const alturaMaxima = 1200;
-
-        const alturaCalculada = 150 + (cantidad * alturaPorCampus);
-        return Math.min(Math.max(alturaCalculada, alturaMinima), alturaMaxima);
+        // Altura optimizada: 25px por campus para que quepan todos sin scroll
+        const alturaPorCampus = 20;
+        const alturaMinima = 400;
+        // Sin altura máxima para que muestre todos los campus
+        const alturaCalculada = 120 + (cantidad * alturaPorCampus);
+        return Math.max(alturaCalculada, alturaMinima);
     };
 
     return (
@@ -597,8 +596,8 @@ export default function DashboardSupervision() {
                                             <ResponsiveContainer width="100%" height="100%">
                                                 <BarChart
                                                     data={campusParaDetallada.map(campus => ({
-                                                        nombre: campus.campus_nombre.length > 20
-                                                            ? campus.campus_nombre.substring(0, 20) + '...'
+                                                        nombre: campus.campus_nombre.length > 15
+                                                            ? campus.campus_nombre.substring(0, 15) + '...'
                                                             : campus.campus_nombre,
                                                         aprobados: selectedMetric === 'legales' ? campus.fiscales.aprobados :
                                                                   selectedMetric === 'medicos' ? campus.medicos.aprobados :
@@ -614,7 +613,7 @@ export default function DashboardSupervision() {
                                                                    campus.total_rechazados
                                                     }))}
                                                     layout="vertical"
-                                                    margin={{ top: 20, right: 30, left: 70, bottom: 20 }}
+                                                    margin={{ top: 15, right: 30, left: 70, bottom: 15 }}
                                                 >
                                                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="dark:stroke-gray-700" />
                                                     <XAxis
@@ -625,9 +624,9 @@ export default function DashboardSupervision() {
                                                     <YAxis
                                                         type="category"
                                                         dataKey="nombre"
-                                                        tick={{ fontSize: 12, fill: 'currentColor' }}
+                                                        tick={{ fontSize: 10, fill: 'currentColor' }}
                                                         className="text-gray-700 dark:text-gray-300"
-                                                        width={150}
+                                                        width={120}
                                                     />
                                                     <Tooltip
                                                         contentStyle={{
