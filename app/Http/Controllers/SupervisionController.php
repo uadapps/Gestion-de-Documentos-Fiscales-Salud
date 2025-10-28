@@ -1063,9 +1063,11 @@ class SupervisionController extends Controller
                 $campus['total_pendientes'] = $campus['fiscales']['pendientes'] + $campus['medicos']['pendientes'];
                 $campus['total_rechazados'] = $campus['fiscales']['rechazados'] + $campus['medicos']['rechazados'];
 
-                // Calcular porcentaje de cumplimiento (aprobados / total)
+                // Calcular porcentaje de cumplimiento (aprobados + caducados / total)
+                // Los documentos caducados también se consideran cumplidos
+                $documentosCumplidos = $campus['total_aprobados'] + $campus['total_caducados'];
                 $campus['porcentaje_cumplimiento'] = $campus['total_documentos'] > 0
-                    ? round(($campus['total_aprobados'] / $campus['total_documentos']) * 100)
+                    ? round(($documentosCumplidos / $campus['total_documentos']) * 100)
                     : 0;
 
                 // Generar hash del campus para navegación
