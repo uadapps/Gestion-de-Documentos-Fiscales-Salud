@@ -1,4 +1,0 @@
-# BACKUP DEL ARCHIVO CORRUPTO - NO BORRAR
-# Este archivo contiene el contenido limpio del DocumentoController
-# Se creó para reemplazar el archivo corrupto que tenía código duplicado
-# Fecha: 2025-10-23

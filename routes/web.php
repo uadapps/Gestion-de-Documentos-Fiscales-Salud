@@ -121,7 +121,7 @@ Route::middleware(['auth', 'verified', 'authorized.role'])->group(function () {
             ]);
 
             if ($hasRole16) {
-                Log::info('🎯 ROLE 16 DETECTED - Serving supervision dashboard');
+                Log::info(' ROLE 16 DETECTED - Serving supervision dashboard');
 
                 // Verificar que el SupervisionController existe
                 if (class_exists('App\Http\Controllers\SupervisionController')) {
@@ -134,18 +134,8 @@ Route::middleware(['auth', 'verified', 'authorized.role'])->group(function () {
             }
 
         } catch (\Exception $e) {
-            Log::error('❌ Exception in dashboard route:', [
-                'user_identifier' => $authUser->getAuthIdentifier(),
-                'error' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
-            ]);
+
         }
-
-        Log::info('📄 Serving normal dashboard (no role 16)');
-        Log::info('=== DASHBOARD ROUTE DEBUG END ===');
-
         // Para otros roles, mostrar dashboard normal
         return Inertia::render('dashboard');
     })->name('dashboard');
@@ -252,9 +242,6 @@ Route::middleware(['auth', 'verified', 'authorized.role'])->group(function () {
 
     // Ver logs de debug
     Route::get('ver-logs', [DocumentoController::class, 'verLogs'])->middleware('role:13,14')->name('ver-logs');
-
-    // Prueba de conexión GPT
-    Route::get('test-gpt', [App\Http\Controllers\TestGPTController::class, 'testConnection'])->name('test-gpt');
 
     // Dashboard de supervisión - Solo rol 16
     Route::prefix('supervision')->name('supervision.')->middleware('role:16')->group(function () {
