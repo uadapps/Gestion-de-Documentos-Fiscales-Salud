@@ -33,6 +33,7 @@ interface DatosSemaforo {
     documentosTotal: number;
     documentosVigentes: number;
     documentosCaducados: number;
+    documentosCumplidos: number; // Nuevo: vigentes + caducados
     documentosVencidos: number;
     usuariosActivos: number;
     id_campus: string;
@@ -373,6 +374,8 @@ export default function SupervisionDashboard({
 
             const vigentes = campus.total_vigentes || campus.total_aprobados || 0;
             const caducados = campus.total_caducados || 0;
+            // Documentos cumplidos = vigentes + caducados
+            const documentosCumplidos = vigentes + caducados;
 
             return {
                 campus: campusNombre,
@@ -381,7 +384,8 @@ export default function SupervisionDashboard({
                 documentosTotal: campus.total_documentos || campus.documentos_total || 0,
                 documentosVigentes: vigentes,
                 documentosCaducados: caducados,
-                documentosVencidos: Math.max(0, (campus.total_documentos || 0) - vigentes),
+                documentosCumplidos: documentosCumplidos, // Nuevo campo: vigentes + caducados
+                documentosVencidos: Math.max(0, (campus.total_documentos || 0) - documentosCumplidos), // Usar cumplidos en lugar de solo vigentes
                 usuariosActivos: campus.usuarios_activos || 1,
                 id_campus: campusIdFormatted, // Usar ID formateado
                 campusHash, // Usar hash del backend o generado
@@ -611,14 +615,20 @@ export default function SupervisionDashboard({
                                                     <span className="font-medium">{campus.documentosTotal}</span>
                                                 </div>
                                                 <div className="flex justify-between">
-                                                    <span>Vigentes:</span>
+                                                    <span>Cumplidos:</span>
                                                     <span className="font-medium text-green-600 dark:text-green-400">
+                                                        {campus.documentosCumplidos}
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-xs text-gray-500">• Vigentes:</span>
+                                                    <span className="font-medium text-green-600 dark:text-green-400 text-xs">
                                                         {campus.documentosVigentes}
                                                     </span>
                                                 </div>
                                                 <div className="flex justify-between">
-                                                    <span>Caducados:</span>
-                                                    <span className="font-medium text-orange-600 dark:text-orange-400">
+                                                    <span className="text-xs text-gray-500">• Caducados:</span>
+                                                    <span className="font-medium text-orange-600 dark:text-orange-400 text-xs">
                                                         {campus.documentosCaducados}
                                                     </span>
                                                 </div>
