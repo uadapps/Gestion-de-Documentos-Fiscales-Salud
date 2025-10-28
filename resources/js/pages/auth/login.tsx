@@ -5,7 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { store } from '@/routes/login';
+import AuthenticatedSessionController from '@/actions/Laravel/Fortify/Http/Controllers/AuthenticatedSessionController';
 import { request } from '@/routes/password';
 import { Form, Head } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
@@ -329,7 +329,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                     )}
 
                                     <Form
-                                        {...store.form()}
+                                        {...AuthenticatedSessionController.store.form()}
                                         resetOnSuccess={['password']}
                                         className="space-y-6"
                                     >
