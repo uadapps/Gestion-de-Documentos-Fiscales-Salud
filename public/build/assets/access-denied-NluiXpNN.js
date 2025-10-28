@@ -1,0 +1,11 @@
+import{j as e,L as o,r as c}from"./app-BGQjaLPp.js";import{c as s}from"./createLucideIcon-CkqHnpbB.js";import{L as l}from"./log-out-CyEWrG3D.js";/* empty css            *//**
+ * @license lucide-react v0.475.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const n=[["path",{d:"m12 19-7-7 7-7",key:"1l729n"}],["path",{d:"M19 12H5",key:"x3x0zl"}]],d=s("ArrowLeft",n);/**
+ * @license lucide-react v0.475.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const i=[["path",{d:"M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z",key:"oel41y"}],["path",{d:"m14.5 9.5-5 5",key:"17q4r4"}],["path",{d:"m9.5 9.5 5 5",key:"18nt4w"}]],m=s("ShieldX",i);function f({message:t,subtitle:r}){const a=()=>{c.post("/logout")};return e.jsx("div",{className:"min-h-screen bg-gradient-to-br from-red-50 to-red-100 flex items-center justify-center p-4",children:e.jsxs("div",{className:"max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center",children:[e.jsx("div",{className:"mb-6",children:e.jsx(m,{className:"mx-auto h-16 w-16 text-red-500"})}),e.jsx("h1",{className:"text-2xl font-bold text-gray-900 mb-4",children:"Acceso Denegado"}),e.jsx("p",{className:"text-gray-600 mb-2",children:t}),e.jsx("p",{className:"text-sm text-gray-500 mb-8",children:r}),e.jsxs("div",{className:"space-y-3",children:[e.jsxs(o,{href:"/dashboard",className:"w-full inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors",children:[e.jsx(d,{className:"mr-2 h-4 w-4"}),"Volver al Dashboard"]}),e.jsxs("button",{onClick:a,className:"w-full inline-flex items-center justify-center px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors",children:[e.jsx(l,{className:"mr-2 h-4 w-4"}),"Cerrar Sesión"]})]}),e.jsx("div",{className:"mt-8 pt-6 border-t border-gray-200",children:e.jsx("p",{className:"text-xs text-gray-400",children:"Si crees que esto es un error, contacta al administrador del sistema."})})]})})}export{f as default};
