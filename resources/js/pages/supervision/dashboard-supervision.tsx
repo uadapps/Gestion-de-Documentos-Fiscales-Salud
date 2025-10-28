@@ -96,7 +96,6 @@ interface DatosSupervision {
 export default function DashboardSupervision() {
     const { datosSupervision } = usePage<{ datosSupervision: DatosSupervision }>().props;
     const [selectedMetric, setSelectedMetric] = useState<'legales' | 'medicos' | 'general'>('general');
-    const [campusLimit, setCampusLimit] = useState<number>(10); // Cantidad de campus a mostrar
 
     const breadcrumbItems: BreadcrumbItem[] = [
         { title: 'Dashboard', href: '/' },
@@ -139,21 +138,42 @@ export default function DashboardSupervision() {
     // Calcular campus críticos desde el frontend (campus únicos con cumplimiento < 60%)
     const campusCriticos = campusFiltrados.filter(campus => campus.porcentaje_cumplimiento < 60).length;
 
-    // Aplicar límite de campus para las gráficas
+    // Aplicar límite de campus para las gráficas - ahora siempre mostrar todos
     const getCampusParaGraficas = () => {
-        const ordenados = [...campusFiltrados].sort((a, b) => a.campus_nombre.localeCompare(b.campus_nombre));
-        return campusLimit === -1 ? ordenados : ordenados.slice(0, campusLimit);
+        return [...campusFiltrados].sort((a, b) => a.campus_nombre.localeCompare(b.campus_nombre));
     };
 
     const campusParaGraficas = getCampusParaGraficas();
 
-    // Calcular altura dinámica según la cantidad de campus
+    // Para la gráfica detallada, siempre mostrar todos los campus filtrados
+    const getCampusParaDetallada = () => {
+        return [...campusFiltrados].sort((a, b) => a.campus_nombre.localeCompare(b.campus_nombre));
+    };
+
+    const campusParaDetallada = getCampusParaDetallada();
+
+    // Calcular altura dinámica según la cantidad de campus (más compacta)
     const getGraficaHeight = () => {
         const cantidad = campusParaGraficas.length;
-        if (cantidad <= 10) return 500;
-        if (cantidad <= 20) return 700;
-        if (cantidad <= 30) return 900;
-        return 1400;
+        // Altura más compacta: 30px por campus + margen
+        const alturaPorCampus = 35;
+        const alturaMinima = 400;
+        const alturaMaxima = 1000;
+
+        const alturaCalculada = 150 + (cantidad * alturaPorCampus);
+        return Math.min(Math.max(alturaCalculada, alturaMinima), alturaMaxima);
+    };
+
+    // Calcular altura dinámica para la gráfica detallada
+    const getGraficaDetalladaHeight = () => {
+        const cantidad = campusParaDetallada.length;
+        // Altura más compacta: 30px por campus + margen
+        const alturaPorCampus = 30;
+        const alturaMinima = 600;
+        const alturaMaxima = 1200;
+
+        const alturaCalculada = 150 + (cantidad * alturaPorCampus);
+        return Math.min(Math.max(alturaCalculada, alturaMinima), alturaMaxima);
     };
 
     return (
@@ -198,6 +218,8 @@ export default function DashboardSupervision() {
                 {/* Dashboard Content */}
                 {datosSupervision && (
                     <>
+
+
                         {/* Métricas Principales */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                             <Card className="border-l-4 border-l-blue-500 dark:border-l-blue-400">
@@ -278,33 +300,55 @@ export default function DashboardSupervision() {
                         {/* Sección de Gráficas con Recharts */}
                         {datosSupervision && (
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                                {/* Control de Visualización - Selector de Cantidad */}
-                                <Card className="lg:col-span-2 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 border-blue-200 dark:border-blue-800">
+                                {/* Selector de Tipo de Documento */}
+                                <Card className="lg:col-span-2 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950 border-blue-200 dark:border-blue-800">
                                     <CardContent className="pt-6">
                                         <div className="flex items-center justify-between gap-4">
                                             <div className="flex items-center gap-3">
-                                                <BarChart3 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                                                <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                                                 <div>
-                                                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">Visualización de Gráficas</h3>
-                                                    <p className="text-sm text-gray-600 dark:text-gray-400">Selecciona cuántos campus mostrar</p>
+                                                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">Filtrar por Tipo de Documento</h3>
+                                                    <p className="text-sm text-gray-600 dark:text-gray-400">Selecciona qué documentos visualizar en las gráficas</p>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-4">
-                                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                    Mostrar:
-                                                </label>
-                                                <select
-                                                    value={campusLimit}
-                                                    onChange={(e) => setCampusLimit(Number(e.target.value))}
-                                                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 text-sm font-medium"
+                                            <div className="flex items-center gap-3">
+                                                <Button
+                                                    onClick={() => setSelectedMetric('general')}
+                                                    className={`${
+                                                        selectedMetric === 'general'
+                                                            ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                                                            : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                                    }`}
                                                 >
-                                                    <option value={10}>10 Campus</option>
-                                                    <option value={20}>20 Campus</option>
-                                                    <option value={30}>30 Campus</option>
-                                                    <option value={-1}>Todos ({campusFiltrados.length})</option>
-                                                </select>
-                                                <div className="text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700">
-                                                    Mostrando: <span className="font-bold text-blue-600 dark:text-blue-400">{campusParaGraficas.length}</span> de {campusFiltrados.length}
+                                                    <Activity className="w-4 h-4 mr-2" />
+                                                    General
+                                                </Button>
+                                                <Button
+                                                    onClick={() => setSelectedMetric('legales')}
+                                                    className={`${
+                                                        selectedMetric === 'legales'
+                                                            ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                                                            : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                                    }`}
+                                                >
+                                                    <Shield className="w-4 h-4 mr-2" />
+                                                    Legales
+                                                </Button>
+                                                <Button
+                                                    onClick={() => setSelectedMetric('medicos')}
+                                                    className={`${
+                                                        selectedMetric === 'medicos'
+                                                            ? 'bg-green-600 hover:bg-green-700 text-white'
+                                                            : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                                    }`}
+                                                >
+                                                    <FileText className="w-4 h-4 mr-2" />
+                                                    Médicos
+                                                </Button>
+                                                <div className="ml-4 text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700">
+                                                    Mostrando: <span className="font-bold text-blue-600 dark:text-blue-400">
+                                                        {selectedMetric === 'general' ? 'Todos' : selectedMetric === 'legales' ? 'Documentos Legales' : 'Documentos Médicos'}
+                                                    </span>
                                                 </div>
                                             </div>
                                         </div>
@@ -317,39 +361,53 @@ export default function DashboardSupervision() {
                                         <CardTitle className="text-xl flex items-center gap-3">
                                             <BarChart3 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                                             Cumplimiento por Campus
+                                            <Badge className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 ml-2">
+                                                {selectedMetric === 'general' ? 'General' : selectedMetric === 'legales' ? 'Legales' : 'Médicos'}
+                                            </Badge>
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent>
                                         <div style={{ height: `${getGraficaHeight()}px` }}>
                                             <ResponsiveContainer width="100%" height="100%">
-                                                <BarChart
-                                                    data={campusParaGraficas.map(campus => ({
-                                                        nombre: campus.campus_nombre.length > 15
-                                                            ? campus.campus_nombre.substring(0, 15) + '...'
-                                                            : campus.campus_nombre,
-                                                        aprobados: selectedMetric === 'legales' ? campus.fiscales.aprobados :
-                                                                  selectedMetric === 'medicos' ? campus.medicos.aprobados :
-                                                                  campus.total_aprobados,
-                                                        pendientes: selectedMetric === 'legales' ? campus.fiscales.pendientes :
-                                                                   selectedMetric === 'medicos' ? campus.medicos.pendientes :
-                                                                   campus.total_pendientes,
-                                                        total: selectedMetric === 'legales' ? campus.fiscales.total_documentos :
-                                                              selectedMetric === 'medicos' ? campus.medicos.total_documentos :
-                                                              campus.total_documentos
-                                                    }))}
-                                                    margin={{ top: 20, right: 30, left: 20, bottom: 120 }}
-                                                >
+                                                    <BarChart
+                                                        data={campusParaGraficas.map(campus => {
+                                                            const aprobados = selectedMetric === 'legales' ? campus.fiscales.aprobados :
+                                                                             selectedMetric === 'medicos' ? campus.medicos.aprobados :
+                                                                             campus.total_aprobados;
+                                                            const pendientes = selectedMetric === 'legales' ? campus.fiscales.pendientes :
+                                                                              selectedMetric === 'medicos' ? campus.medicos.pendientes :
+                                                                              campus.total_pendientes;
+                                                            const total = selectedMetric === 'legales' ? campus.fiscales.total_documentos :
+                                                                         selectedMetric === 'medicos' ? campus.medicos.total_documentos :
+                                                                         campus.total_documentos;
+                                                            return {
+                                                                nombre: campus.campus_nombre.length > 20
+                                                                    ? campus.campus_nombre.substring(0, 20) + '...'
+                                                                    : campus.campus_nombre,
+                                                                aprobados,
+                                                                pendientes,
+                                                                total
+                                                            };
+                                                        })}
+                                                        layout="horizontal"
+                                                        margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
+                                                    >
                                                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="dark:stroke-gray-700" />
-                                                    <XAxis
-                                                        dataKey="nombre"
-                                                        tick={{ fontSize: 11, fill: 'currentColor' }}
-                                                        className="text-gray-700 dark:text-gray-300"
-                                                        angle={-45}
-                                                        textAnchor="end"
-                                                        height={100}
-                                                        interval={0}
-                                                    />
-                                                    <YAxis tick={{ fontSize: 12, fill: 'currentColor' }} className="text-gray-700 dark:text-gray-300" />
+                                                        <XAxis
+                                                            dataKey="nombre"
+                                                            tick={{ fontSize: 13, fill: 'currentColor' }}
+                                                            className="text-gray-700 dark:text-gray-300"
+                                                            angle={-45}
+                                                            textAnchor="end"
+                                                            height={80}
+                                                            interval={0}
+                                                        />
+                                                        <YAxis
+                                                            type="number"
+                                                            tick={{ fontSize: 12, fill: 'currentColor' }}
+                                                            className="text-gray-700 dark:text-gray-300"
+                                                            domain={[0, 'dataMax + 5']}
+                                                        />
                                                     <Tooltip
                                                         contentStyle={{
                                                             backgroundColor: '#f8fafc',
@@ -368,7 +426,7 @@ export default function DashboardSupervision() {
                                                         dataKey="aprobados"
                                                         fill="#10b981"
                                                         name="Aprobados"
-                                                        radius={[4, 4, 0, 0]}
+                                                        radius={[0, 4, 4, 0]}
                                                     />
                                                 </BarChart>
                                             </ResponsiveContainer>
@@ -392,22 +450,38 @@ export default function DashboardSupervision() {
                                                         data={[
                                                             {
                                                                 name: 'Aprobados',
-                                                                value: datosSupervision.estadisticas_generales.total_aprobados,
+                                                                value: selectedMetric === 'legales'
+                                                                    ? campusFiltrados.reduce((sum, campus) => sum + campus.fiscales.aprobados, 0)
+                                                                    : selectedMetric === 'medicos'
+                                                                    ? campusFiltrados.reduce((sum, campus) => sum + campus.medicos.aprobados, 0)
+                                                                    : datosSupervision.estadisticas_generales.total_aprobados,
                                                                 color: '#10b981'
                                                             },
                                                             {
                                                                 name: 'Pendientes',
-                                                                value: datosSupervision.estadisticas_generales.total_pendientes,
+                                                                value: selectedMetric === 'legales'
+                                                                    ? campusFiltrados.reduce((sum, campus) => sum + campus.fiscales.pendientes, 0)
+                                                                    : selectedMetric === 'medicos'
+                                                                    ? campusFiltrados.reduce((sum, campus) => sum + campus.medicos.pendientes, 0)
+                                                                    : datosSupervision.estadisticas_generales.total_pendientes,
                                                                 color: '#f59e0b'
                                                             },
                                                             {
                                                                 name: 'Caducados',
-                                                                value: datosSupervision.estadisticas_generales.total_caducados,
+                                                                value: selectedMetric === 'legales'
+                                                                    ? campusFiltrados.reduce((sum, campus) => sum + campus.fiscales.caducados, 0)
+                                                                    : selectedMetric === 'medicos'
+                                                                    ? campusFiltrados.reduce((sum, campus) => sum + campus.medicos.caducados, 0)
+                                                                    : datosSupervision.estadisticas_generales.total_caducados,
                                                                 color: '#f97316'
                                                             },
                                                             {
                                                                 name: 'Rechazados',
-                                                                value: datosSupervision.estadisticas_generales.total_rechazados,
+                                                                value: selectedMetric === 'legales'
+                                                                    ? campusFiltrados.reduce((sum, campus) => sum + campus.fiscales.rechazados, 0)
+                                                                    : selectedMetric === 'medicos'
+                                                                    ? campusFiltrados.reduce((sum, campus) => sum + campus.medicos.rechazados, 0)
+                                                                    : datosSupervision.estadisticas_generales.total_rechazados,
                                                                 color: '#ef4444'
                                                             }
                                                         ].filter(item => item.value > 0)}
@@ -464,14 +538,14 @@ export default function DashboardSupervision() {
                                                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="dark:stroke-gray-700" />
                                                     <XAxis
                                                         dataKey="campus"
-                                                        tick={{ fontSize: 10, fill: 'currentColor' }}
+                                                        tick={{ fontSize: 11, fill: 'currentColor' }}
                                                         className="text-gray-700 dark:text-gray-300"
                                                         angle={-45}
                                                         textAnchor="end"
                                                         height={80}
                                                         interval={0}
                                                     />
-                                                    <YAxis tick={{ fontSize: 11, fill: 'currentColor' }} className="text-gray-700 dark:text-gray-300" />
+                                                    <YAxis tick={{ fontSize: 12, fill: 'currentColor' }} className="text-gray-700 dark:text-gray-300" />
                                                     <Tooltip
                                                         contentStyle={{
                                                             backgroundColor: '#f8fafc',
@@ -513,15 +587,18 @@ export default function DashboardSupervision() {
                                         <CardTitle className="text-xl flex items-center gap-3">
                                             <BarChart3 className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
                                             Análisis Detallado por Campus
+                                            <Badge className="bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 ml-2">
+                                                {selectedMetric === 'general' ? 'General' : selectedMetric === 'legales' ? 'Legales' : 'Médicos'}
+                                            </Badge>
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent>
-                                        <div style={{ height: `${getGraficaHeight()}px` }}>
+                                        <div style={{ height: `${getGraficaDetalladaHeight()}px` }}>
                                             <ResponsiveContainer width="100%" height="100%">
                                                 <BarChart
-                                                    data={campusParaGraficas.map(campus => ({
-                                                        nombre: campus.campus_nombre.length > 12
-                                                            ? campus.campus_nombre.substring(0, 12) + '...'
+                                                    data={campusParaDetallada.map(campus => ({
+                                                        nombre: campus.campus_nombre.length > 20
+                                                            ? campus.campus_nombre.substring(0, 20) + '...'
                                                             : campus.campus_nombre,
                                                         aprobados: selectedMetric === 'legales' ? campus.fiscales.aprobados :
                                                                   selectedMetric === 'medicos' ? campus.medicos.aprobados :
@@ -536,19 +613,22 @@ export default function DashboardSupervision() {
                                                                    selectedMetric === 'medicos' ? campus.medicos.rechazados :
                                                                    campus.total_rechazados
                                                     }))}
-                                                    margin={{ top: 20, right: 30, left: 20, bottom: 120 }}
+                                                    layout="vertical"
+                                                    margin={{ top: 20, right: 30, left: 70, bottom: 20 }}
                                                 >
                                                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="dark:stroke-gray-700" />
                                                     <XAxis
-                                                        dataKey="nombre"
-                                                        tick={{ fontSize: 10, fill: 'currentColor' }}
+                                                        type="number"
+                                                        tick={{ fontSize: 13, fill: 'currentColor' }}
                                                         className="text-gray-700 dark:text-gray-300"
-                                                        angle={-45}
-                                                        textAnchor="end"
-                                                        height={100}
-                                                        interval={0}
                                                     />
-                                                    <YAxis tick={{ fontSize: 11, fill: 'currentColor' }} className="text-gray-700 dark:text-gray-300" />
+                                                    <YAxis
+                                                        type="category"
+                                                        dataKey="nombre"
+                                                        tick={{ fontSize: 12, fill: 'currentColor' }}
+                                                        className="text-gray-700 dark:text-gray-300"
+                                                        width={150}
+                                                    />
                                                     <Tooltip
                                                         contentStyle={{
                                                             backgroundColor: '#f8fafc',
