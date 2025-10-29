@@ -13,7 +13,8 @@ import {
     AlertTriangle,
     CheckCircle,
     Clock,
-    Activity
+    Activity,
+    Filter
 } from 'lucide-react';
 import {
     BarChart,
@@ -96,6 +97,7 @@ interface DatosSupervision {
 export default function DashboardSupervision() {
     const { datosSupervision } = usePage<{ datosSupervision: DatosSupervision }>().props;
     const [selectedMetric, setSelectedMetric] = useState<'legales' | 'medicos' | 'general'>('general');
+    const [excludeCID, setExcludeCID] = useState<boolean>(false);
 
     const breadcrumbItems: BreadcrumbItem[] = [
         { title: 'Dashboard', href: '/' },
@@ -110,11 +112,17 @@ export default function DashboardSupervision() {
         return 'bg-red-500 text-white';
     };
 
-    // Filtrar campus según la métrica seleccionada
+    // Filtrar campus según la métrica seleccionada y exclusión de CID
     const getCampusFiltrados = () => {
         if (!datosSupervision) return [];
 
-        const campusFiltrados = datosSupervision.estadisticas_por_campus.filter(campus => {
+        let campusFiltrados = datosSupervision.estadisticas_por_campus.filter(campus => {
+            // Filtrar por CID si está activado
+            if (excludeCID && campus.campus_nombre.toUpperCase().includes('CID')) {
+                return false;
+            }
+
+            // Filtrar por tipo de documento
             switch (selectedMetric) {
                 case 'legales':
                     return campus.tiene_fiscales;
@@ -306,7 +314,7 @@ export default function DashboardSupervision() {
                                     <CardContent className="pt-6">
                                         <div className="flex items-center justify-between gap-4">
                                             <div className="flex items-center gap-3">
-                                                <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                                                <BarChart3 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                                                 <div>
                                                     <h3 className="font-semibold text-gray-900 dark:text-gray-100">Filtrar por Tipo de Documento</h3>
                                                     <p className="text-sm text-gray-600 dark:text-gray-400">Selecciona qué documentos visualizar en las gráficas</p>
@@ -346,6 +354,20 @@ export default function DashboardSupervision() {
                                                     <FileText className="w-4 h-4 mr-2" />
                                                     Médicos
                                                 </Button>
+
+                                                <div className="mx-3 h-6 w-px bg-gray-300 dark:bg-gray-600"></div>
+                                                <Button
+                                                    onClick={() => setExcludeCID(!excludeCID)}
+                                                    className={`${
+                                                        excludeCID
+                                                            ? 'bg-gray-600 hover:bg-gray-700 text-white'
+                                                            : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                                    }`}
+                                                >
+                                                    <Filter className="w-4 h-4 mr-2" />
+                                                    {excludeCID ? 'Incluir CID' : 'Excluir CID'}
+                                                </Button>
+
                                                 <div className="ml-4 text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700">
                                                     Mostrando: <span className="font-bold text-blue-600 dark:text-blue-400">
                                                         {selectedMetric === 'general' ? 'Todos' : selectedMetric === 'legales' ? 'Documentos Legales' : 'Documentos Médicos'}
