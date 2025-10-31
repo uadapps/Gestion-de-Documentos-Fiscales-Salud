@@ -480,6 +480,31 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
         };
     } | null>(null);
 
+    // 🔥 FIX: Sincronizar estado cuando cambien las props de Inertia
+    useEffect(() => {
+        console.log('🔄 Sincronizando estado con props de Inertia:', {
+            documentosIniciales: documentosIniciales?.length,
+            campusInicial: campusInicial?.ID_Campus
+        });
+
+        if (documentosIniciales && documentosIniciales.length > 0) {
+            const documentosActualizados = documentosIniciales.map(doc => ({
+                ...doc,
+                archivos: doc.archivos || []
+            }));
+            setDocumentos(documentosActualizados);
+
+            // Si no hay documento seleccionado, seleccionar el primero
+            if (!selectedDocumento && documentosActualizados.length > 0) {
+                setSelectedDocumento(documentosActualizados[0]);
+            }
+        }
+
+        if (campusInicial) {
+            setCampusActual(campusInicial);
+        }
+    }, [documentosIniciales, campusInicial]);
+
     // Helper para obtener la clave correcta para selectedFiles
     const getDocumentKey = (documento: DocumentoRequerido) => {
         // Para documentos médicos con uniqueKey, usar uniqueKey
@@ -891,8 +916,12 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
     // }, [documentos]);
 
     // 🚀 CARGA INICIAL - Asegurar que se carguen los documentos del campus inicial
+    // 🔥 FIX: Agregar campusInicial como dependencia para que se ejecute cuando cambie la navegación
     useEffect(() => {
-
+        console.log('🔄 useEffect de carga inicial ejecutándose con:', {
+            campusInicial: campusInicial?.ID_Campus,
+            documentosIniciales: documentosIniciales?.length
+        });
 
         // Siempre empezar con indicador de carga en la primera renderización
         setCargandoDocumentosCompleto(true);
@@ -1015,7 +1044,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                 setDocumentosListosParaMostrar(true);
             }
         }
-    }, []); // Solo ejecutar al montar el componente
+    }, [campusInicial?.ID_Campus, documentosIniciales]); // 🔥 FIX: Agregar dependencias para que se ejecute en cada navegación
 
     // � ASEGURAR DOCUMENTO SELECCIONADO - Ejecutar cuando cambien los documentos
     useEffect(() => {

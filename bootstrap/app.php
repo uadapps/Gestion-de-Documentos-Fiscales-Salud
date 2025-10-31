@@ -19,12 +19,19 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'authorized.role' => \App\Http\Middleware\CheckAuthorizedRole::class,
             'role' => \App\Http\Middleware\CheckSpecificRole::class,
+            'guest' => \App\Http\Middleware\RedirectIfAuthenticated::class,
+            'prevent.back' => \App\Http\Middleware\PreventBackHistory::class,
         ]);
 
         $middleware->web(append: [
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
+        ]);
+
+        // Aplicar prevent.back a todas las rutas autenticadas
+        $middleware->group('auth', [
+            \App\Http\Middleware\PreventBackHistory::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
