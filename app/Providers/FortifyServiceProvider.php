@@ -246,10 +246,17 @@ class FortifyServiceProvider extends ServiceProvider
      */
     private function configureViews(): void
     {
-        Fortify::loginView(fn (Request $request) => Inertia::render('auth/login', [
-            'canResetPassword' => Features::enabled(Features::resetPasswords()),
-            'status' => $request->session()->get('status'),
-        ]));
+        Fortify::loginView(function (Request $request) {
+            // Si ya está autenticado, redirigir al dashboard
+            if ($request->user()) {
+                return redirect()->route('dashboard');
+            }
+
+            return Inertia::render('auth/login', [
+                'canResetPassword' => Features::enabled(Features::resetPasswords()),
+                'status' => $request->session()->get('status'),
+            ]);
+        });
 
         Fortify::twoFactorChallengeView(fn () => Inertia::render('auth/two-factor-challenge'));
 
@@ -279,5 +286,10 @@ class FortifyServiceProvider extends ServiceProvider
     {
         // Configurar el idioma para las respuestas de Fortify
         app()->setLocale('es');
+
+        // Redirigir después del login exitoso
+        Fortify::redirects('login', function () {
+            return route('dashboard');
+        });
     }
 }

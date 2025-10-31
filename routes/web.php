@@ -11,14 +11,10 @@ use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 Route::get('/', function () {
-    if (Auth::check()) {
-        // Si está autenticado (ya pasó la validación de roles), ir al dashboard
-        return redirect()->route('dashboard');
-    }
-
-    // Si no está autenticado, mostrar login
+    // El middleware guest ya redirige si está autenticado
+    // Solo renderizar login si llegamos aquí
     return Inertia::render('auth/login');
-})->name('home');
+})->middleware('guest')->name('home');
 
 Route::get('access-denied', [AccessController::class, 'denied'])->name('access.denied');
 

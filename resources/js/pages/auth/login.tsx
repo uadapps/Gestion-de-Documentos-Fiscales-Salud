@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AuthenticatedSessionController from '@/actions/Laravel/Fortify/Http/Controllers/AuthenticatedSessionController';
 import { request } from '@/routes/password';
-import { Form, Head } from '@inertiajs/react';
+import { Form, Head, usePage, router } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 import { Eye, EyeOff, Lock, Heart, Shield, Users,FileSearch,Database,Clock } from 'lucide-react';
 import Plasma from '@/components/Plasma';
@@ -18,10 +18,12 @@ interface LoginProps {
 }
 
 export default function Login({ status, canResetPassword }: LoginProps) {
+    const { auth } = usePage<{ auth: { user: any } }>().props;
     const [showPassword, setShowPassword] = useState(false);
     const [isLoaded, setIsLoaded] = useState(false);
     const [showLight, setShowLight] = useState(false);
     const [currentFeature, setCurrentFeature] = useState(0);
+    const [isCheckingAuth, setIsCheckingAuth] = useState(true); // Bloquear renderizado inicial
 
     const features = [
      { icon: FileSearch, title: "Validación Inteligente", description: "Revisión automática de documentos y licencias" },
@@ -30,19 +32,90 @@ export default function Login({ status, canResetPassword }: LoginProps) {
 
     ];
 
+    // VERIFICACIÓN INMEDIATA - antes de renderizar cualquier cosa
     useEffect(() => {
-        // Keyhole aparece inmediatamente sin delay
-        setShowLight(true);
+        // Si hay usuario autenticado, redirigir inmediatamente
+        if (auth?.user) {
+            router.visit('/dashboard', { replace: true });
+        } else {
+            // No hay usuario, permitir mostrar login
+            setIsCheckingAuth(false);
+        }
+    }, []);
 
-        // Después de 2 segundos, el keyhole comienza a abrirse
-        const openTimer = setTimeout(() => {
-            setIsLoaded(true);
-        }, 500);
+    // Función para verificar autenticación y redirigir
+    const checkAuthAndRedirect = () => {
+        if (auth?.user) {
+            router.visit('/dashboard', { replace: true });
+        }
+    };
+
+    // Verificar cuando cambia auth
+    useEffect(() => {
+        checkAuthAndRedirect();
+    }, [auth]);
+
+    // Verificar cuando la página se vuelve visible (botón atrás del navegador)
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (!document.hidden) {
+                // La página se volvió visible, forzar recarga desde servidor
+                window.location.href = '/dashboard';
+            }
+        };
+
+        const handlePageShow = (event: PageTransitionEvent) => {
+            // Detectar cuando se usa el botón atrás/adelante del navegador
+            if (event.persisted) {
+                // Página cargada desde bfcache, forzar recarga
+                window.location.href = '/dashboard';
+            }
+        };
+
+        const handleFocus = () => {
+            // Verificar cuando la ventana recupera el foco
+            if (auth?.user) {
+                window.location.href = '/dashboard';
+            }
+        };
+
+        const handlePopState = () => {
+            // Detectar navegación con botones del navegador
+            if (auth?.user) {
+                window.location.href = '/dashboard';
+            }
+        };
+
+        // Agregar listeners
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('pageshow', handlePageShow);
+        window.addEventListener('focus', handleFocus);
+        window.addEventListener('popstate', handlePopState);
 
         return () => {
-            clearTimeout(openTimer);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('pageshow', handlePageShow);
+            window.removeEventListener('focus', handleFocus);
+            window.removeEventListener('popstate', handlePopState);
         };
-    }, []);    useEffect(() => {
+    }, [auth]);
+
+    useEffect(() => {
+        // Solo iniciar animación si no estamos verificando auth
+        if (!isCheckingAuth) {
+            // Keyhole aparece inmediatamente sin delay
+            setShowLight(true);
+
+            // Después de 2 segundos, el keyhole comienza a abrirse
+            const openTimer = setTimeout(() => {
+                setIsLoaded(true);
+            }, 500);
+
+            return () => {
+                clearTimeout(openTimer);
+            };
+        }
+    }, [isCheckingAuth]);    useEffect(() => {
         // Preload background image
         const img = new Image();
         img.src = '/medical-bg.svg';
@@ -57,9 +130,18 @@ export default function Login({ status, canResetPassword }: LoginProps) {
         return () => clearInterval(interval);
     }, [features.length]);
 
+    // Si estamos verificando autenticación, no renderizar nada (o un spinner)
+    if (isCheckingAuth) {
+        return null; // O puedes retornar un spinner de carga
+    }
+
     return (
         <>
-            <Head title="Iniciar Sesión" />
+            <Head title="Iniciar Sesión">
+                <meta httpEquiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
+                <meta httpEquiv="Pragma" content="no-cache" />
+                <meta httpEquiv="Expires" content="0" />
+            </Head>
 
             {/* Picaporte Reveal Loader */}
             {showLight && !isLoaded && (
@@ -397,7 +479,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                                     <InputError message={errors.password} />
                                                 </div>
 
-                                        
+
 
                                                 {/* Submit button */}
                                                 <Button

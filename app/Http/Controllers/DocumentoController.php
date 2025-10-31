@@ -27,15 +27,31 @@ class DocumentoController extends Controller
             $user = Auth::user();
             $campusDelDirector = $this->getCampusDelDirector($user->ID_Usuario);
 
-            $documentosRequeridos = $this->getDocumentosRequeridos();
+            // 🔥 FIX: Obtener el primer campus y pasarlo al método para cargar documentos con datos reales
+            $primerCampus = $campusDelDirector->first();
+            $campusId = $primerCampus ? $primerCampus['ID_Campus'] : null;
+
+            // Log para debug
+            Log::info('Cargando página upload', [
+                'campus_id' => $campusId,
+                'total_campus' => $campusDelDirector->count()
+            ]);
+
+            // Pasar el campusId para cargar documentos con información real
+            $documentosRequeridos = $this->getDocumentosRequeridos($campusId);
 
             return Inertia::render('documentos/upload', [
                 'campusDelDirector' => $campusDelDirector->toArray(),
                 'documentosRequeridos' => $documentosRequeridos,
-                'campusSeleccionado' => $campusDelDirector->first(),
+                'campusSeleccionado' => $primerCampus,
             ]);
 
         } catch (\Exception $e) {
+            Log::error('Error en método upload', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return Inertia::render('documentos/upload', [
                 'campusDelDirector' => [],
                 'documentosRequeridos' => [],
