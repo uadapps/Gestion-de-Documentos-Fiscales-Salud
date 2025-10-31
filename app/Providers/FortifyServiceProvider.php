@@ -30,14 +30,10 @@ class FortifyServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Log::info('=== FortifyServiceProvider BOOT INICIADO ===');
-
         $this->configureViews();
         $this->configureRateLimiting();
         $this->configureAuthentication();
         $this->configureResponses();
-
-        Log::info('=== FortifyServiceProvider BOOT COMPLETADO ===');
     }
 
     /**
@@ -45,14 +41,10 @@ class FortifyServiceProvider extends ServiceProvider
      */
     private function configureAuthentication(): void
     {
-        Log::info('=== REGISTRANDO AUTENTICACION PERSONALIZADA ===');
+
 
         // Configurar el campo de username personalizado
         Fortify::authenticateUsing(function (Request $request) {
-            Log::info('=== INICIO AUTENTICACION PERSONALIZADA ===', [
-                'usuario_solicitado' => $request->Usuario,
-                'timestamp' => now(),
-            ]);
 
             // Buscar usuario base
             $user = \App\Models\usuario_model::where('Usuario', $request->Usuario)
@@ -60,23 +52,15 @@ class FortifyServiceProvider extends ServiceProvider
                 ->first();
 
             if (!$user) {
-                Log::info('Usuario no encontrado o inactivo:', [
-                    'usuario_solicitado' => $request->Usuario,
-                ]);
+
                 return null;
             }
 
-            Log::info('Usuario encontrado, validando contraseña:', [
-                'usuario' => $user->Usuario,
-                'activo' => $user->Activo,
-                'tiene_frase_secreta' => !empty($user->FraseSecreta),
-            ]);
+
 
             // Verificar que tenga frase secreta
             if (empty($user->FraseSecreta)) {
-                Log::info('Usuario sin frase secreta:', [
-                    'usuario' => $user->Usuario,
-                ]);
+
                 return null;
             }
 
@@ -90,27 +74,17 @@ class FortifyServiceProvider extends ServiceProvider
             ->first();
 
             if (!$userWithDecryptedPassword) {
-                Log::info('Error al desencriptar contraseña:', [
-                    'usuario' => $user->Usuario,
-                ]);
+
                 return null;
             }
 
-            Log::info('Contraseña desencriptada, comparando:', [
-                'usuario' => $userWithDecryptedPassword->Usuario,
-                'tiene_password_decrypted' => !empty($userWithDecryptedPassword->password_decrypted),
-                'password_decrypted_length' => strlen($userWithDecryptedPassword->password_decrypted ?? ''),
-                'password_ingresada_length' => strlen($request->password),
-            ]);
+
 
             // Comparar contraseñas
             $decryptedPassword = trim($userWithDecryptedPassword->password_decrypted ?? '');
             $inputPassword = trim($request->password);
 
             if (!empty($decryptedPassword) && $decryptedPassword === $inputPassword) {
-                Log::info('Contraseña correcta, verificando roles:', [
-                    'usuario' => $userWithDecryptedPassword->Usuario,
-                ]);
 
                 // VALIDAR ROLES ANTES DE AUTENTICAR
                 $user->load('roles');
@@ -118,49 +92,40 @@ class FortifyServiceProvider extends ServiceProvider
                 $rolesUsuario = $user->roles->pluck('ID_Rol')->toArray();
                 $tieneRolAutorizado = $user->roles->pluck('ID_Rol')->intersect($rolesAutorizados)->isNotEmpty();
 
-                Log::info('Verificación de roles:', [
-                    'usuario' => $user->Usuario,
-                    'roles_usuario' => $rolesUsuario,
-                    'roles_autorizados' => $rolesAutorizados,
-                    'tiene_acceso' => $tieneRolAutorizado,
-                ]);
+
 
                 if (!$tieneRolAutorizado) {
-                    Log::info('Usuario sin roles autorizados - negando acceso:', [
-                        'usuario' => $user->Usuario,
-                        'roles' => $rolesUsuario,
-                    ]);
+
                     // Retornar null para que falle como credenciales incorrectas
                     return null;
                 }
 
-                // ✅ VALIDACIÓN ESPECIAL: Si tiene rol 16 (Supervisor), debe ser usuario "rector"
-                $tieneRol16 = in_array('16', $rolesUsuario);
+                //  VALIDACIONES ESPECIALES DE USUARIOS Y ROLES
+                $usuarioNormalizado = strtolower(trim($user->Usuario));
 
+                // VALIDACIÓN ESPECIAL: Si tiene rol 16 (Supervisor), debe ser usuario "rector"
+                $tieneRol16 = in_array('16', $rolesUsuario);
                 if ($tieneRol16) {
-                    $usuarioNormalizado = strtolower(trim($user->Usuario));
                     if ($usuarioNormalizado !== 'rector') {
-                        Log::info('Usuario con rol 16 pero no es rector - negando acceso:', [
-                            'usuario' => $user->Usuario,
-                            'roles' => $rolesUsuario,
-                        ]);
                         // Retornar null para que falle como credenciales incorrectas
                         return null;
                     }
                 }
 
-                Log::info('Usuario autenticado exitosamente:', [
-                    'usuario' => $user->Usuario,
-                    'roles' => $rolesUsuario,
-                ]);
+                // VALIDACIÓN ESPECIAL: Si tiene rol 20, debe ser usuario "planeacion_desarrollo"
+                $tieneRol20 = in_array('20', $rolesUsuario);
+                if ($tieneRol20) {
+                    if ($usuarioNormalizado !== 'planeacion_desarrollo') {
+                        // Retornar null para que falle como credenciales incorrectas
+                        return null;
+                    }
+                }
+
 
                 // Retornar el usuario original (sin el campo password_decrypted)
                 return $user;
             } else {
-                Log::info('Contraseña incorrecta:', [
-                    'usuario' => $userWithDecryptedPassword->Usuario,
-                    'passwords_match' => $decryptedPassword === $inputPassword,
-                ]);
+
             }
 
             return null;
@@ -177,11 +142,6 @@ class FortifyServiceProvider extends ServiceProvider
             return false;
         }
 
-        Log::info('Password verification start:', [
-            'password_input' => $password,
-            'hash_length' => strlen($hashedPassword),
-            'is_utf8' => mb_check_encoding($hashedPassword, 'UTF-8')
-        ]);
 
         // Convertir binary a hex si es necesario
         if (!mb_check_encoding($hashedPassword, 'UTF-8')) {
@@ -190,10 +150,7 @@ class FortifyServiceProvider extends ServiceProvider
             $hexHash = strtoupper($hashedPassword);
         }
 
-        Log::info('Hash converted to hex:', [
-            'hex_hash_start' => substr($hexHash, 0, 16),
-            'hex_length' => strlen($hexHash)
-        ]);
+
 
         // Verificar si es hash de SQL Server (empieza con 02000000)
         if (str_starts_with($hexHash, '02000000') && strlen($hexHash) >= 48) {
@@ -208,7 +165,7 @@ class FortifyServiceProvider extends ServiceProvider
         // Verificación MD5 simple (legacy)
         if (strlen($hexHash) === 32 && ctype_xdigit($hexHash)) {
             $md5Hash = strtoupper(md5($password));
-            Log::info('Trying MD5 verification:', ['computed' => $md5Hash]);
+
             return $hexHash === $md5Hash;
         }
 
@@ -221,7 +178,7 @@ class FortifyServiceProvider extends ServiceProvider
      */
     private function verifySqlServerPassword($password, $hexHash)
     {
-        Log::info('Verifying SQL Server PBKDF2 hash');
+
 
         try {
             // Estructura del hash SQL Server:

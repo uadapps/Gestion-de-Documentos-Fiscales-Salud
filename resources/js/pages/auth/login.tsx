@@ -397,21 +397,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                                     <InputError message={errors.password} />
                                                 </div>
 
-                                                {/* Remember me checkbox */}
-                                                <div className="flex items-center space-x-3">
-                                                    <Checkbox
-                                                        id="remember"
-                                                        name="remember"
-                                                        tabIndex={3}
-                                                        className="rounded border-2 border-stone-300 dark:border-stone-600"
-                                                    />
-                                                    <Label
-                                                        htmlFor="remember"
-                                                        className="text-sm text-stone-600 dark:text-stone-400 cursor-pointer"
-                                                    >
-                                                        Recordarme
-                                                    </Label>
-                                                </div>
+                                        
 
                                                 {/* Submit button */}
                                                 <Button

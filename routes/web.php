@@ -23,7 +23,6 @@ Route::get('/', function () {
 Route::get('access-denied', [AccessController::class, 'denied'])->name('access.denied');
 
 Route::middleware(['auth', 'verified', 'authorized.role'])->group(function () {
-    // Debug temporal para verificar roles
     Route::get('debug-roles', function () {
         $authUser = Auth::user();
 
@@ -58,13 +57,14 @@ Route::middleware(['auth', 'verified', 'authorized.role'])->group(function () {
                 'ID_Usuario' => $user->ID_Usuario,
                 'Usuario' => $user->Usuario
             ],
-            'roles' => $roles->map(function($role) {
+            'roles' => $roles->map(function ($role) {
                 return [
                     'ID_Rol' => $role->ID_Rol,
                     'Descripcion' => $role->Descripcion ?? 'N/A'
                 ];
             }),
-            'has_role_16' => in_array(16, $roles->pluck('ID_Rol')->toArray())
+            'has_role_16' => in_array(16, $roles->pluck('ID_Rol')->toArray()),
+            'has_role_20' => in_array(20, $roles->pluck('ID_Rol')->toArray())
         ]);
     });
 
@@ -114,30 +114,44 @@ Route::middleware(['auth', 'verified', 'authorized.role'])->group(function () {
             ]);
 
             $hasRole16 = in_array(16, $roleIds) || in_array('16', $roleIds);
+            $hasRole20 = in_array(20, $roleIds) || in_array('20', $roleIds);
 
-            Log::info('Role 16 check result:', [
+            Log::info('Role check results:', [
                 'has_role_16' => $hasRole16,
-                'check_method' => 'in_array'
+                'has_role_20' => $hasRole20,
+                'check_method' => 'in_array',
+                'role_ids_original' => $roleIds,
+                'role_ids_types' => array_map('gettype', $roleIds),
+                'usuario_actual' => $user->Usuario,
+                'usuario_normalizado' => strtolower(trim($user->Usuario))
             ]);
 
-            if ($hasRole16) {
-                Log::info(' ROLE 16 DETECTED - Serving supervision dashboard');
-
-                // Verificar que el SupervisionController existe
-                if (class_exists('App\Http\Controllers\SupervisionController')) {
-                    Log::info('SupervisionController class exists');
+            // Verificar si tiene roles de supervisión
+            if (class_exists('App\Http\Controllers\SupervisionController')) {
+                if ($hasRole16) {
+                    Log::info('Redirecting to dashboardGlobal (Role 16)');
                     return app(SupervisionController::class)->dashboardGlobal();
-                } else {
-                    Log::error('SupervisionController class not found');
-                    return Inertia::render('dashboard');
+                } elseif ($hasRole20) {
+                    Log::info('Redirecting to supervision dashboard (Role 20)');
+                    return app(SupervisionController::class)->dashboard();
                 }
             }
 
-        } catch (\Exception $e) {
+            // Si no tiene rol 16 ni 20, mostrar dashboard normal
+            Log::info('Serving default dashboard - No supervisory roles (16/20)');
+            return Inertia::render('dashboard');
 
+        } catch (\Exception $e) {
+            Log::error('Exception in dashboard route:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile()
+            ]);
+
+            // En caso de error, mostrar dashboard normal
+            return Inertia::render('dashboard');
         }
-        // Para otros roles, mostrar dashboard normal
-        return Inertia::render('dashboard');
     })->name('dashboard');
 
     // API para estadísticas del dashboard
@@ -187,15 +201,18 @@ Route::middleware(['auth', 'verified', 'authorized.role'])->group(function () {
         // Obtener todos los documentos médicos optimizado (nueva ruta)
         Route::get('medicos-optimizado', [DocumentoController::class, 'getDocumentosMedicosOptimizado'])->name('medicos-optimizado');
 
+        // Obtener documentos médicos usando stored procedure directamente
+        Route::get('medicos-con-sp', [DocumentoController::class, 'getDocumentosMedicosConSP'])->name('medicos-con-sp');
+
         // Ruta de prueba para debug
-        Route::post('test-upload', function(Request $request) {
+        Route::post('test-upload', function (Request $request) {
             Log::info('TEST UPLOAD - Request recibido', $request->all());
             error_log('TEST UPLOAD - FUNCIONANDO');
             return response()->json(['test' => 'ok', 'data' => $request->all()]);
         })->name('test-upload');
 
         // Debug documentos en BD
-        Route::get('debug-documentos', function() {
+        Route::get('debug-documentos', function () {
             $documentos = \App\Models\SugDocumento::all(['id', 'nombre']);
             return response()->json([
                 'documentos_en_bd' => $documentos,
@@ -204,7 +221,7 @@ Route::middleware(['auth', 'verified', 'authorized.role'])->group(function () {
         })->name('debug-documentos');
 
         // Test simple de archivo
-        Route::post('test-file', function(Request $request) {
+        Route::post('test-file', function (Request $request) {
             Log::info('TEST FILE - Info completa', [
                 'hasFile' => $request->hasFile('archivo'),
                 'allFiles' => $request->allFiles(),
@@ -224,7 +241,7 @@ Route::middleware(['auth', 'verified', 'authorized.role'])->group(function () {
         })->name('test-file');
 
         // Debug configuración PHP
-        Route::get('debug-php-config', function() {
+        Route::get('debug-php-config', function () {
             return response()->json([
                 'upload_max_filesize' => ini_get('upload_max_filesize'),
                 'post_max_size' => ini_get('post_max_size'),
@@ -243,18 +260,22 @@ Route::middleware(['auth', 'verified', 'authorized.role'])->group(function () {
     // Ver logs de debug
     Route::get('ver-logs', [DocumentoController::class, 'verLogs'])->middleware('role:13,14')->name('ver-logs');
 
-    // Dashboard de supervisión - Solo rol 16
-    Route::prefix('supervision')->name('supervision.')->middleware('role:16')->group(function () {
+    // Dashboard de supervisión - Roles 16 y 20
+    Route::prefix('supervision')->name('supervision.')->middleware('role:16,20')->group(function () {
         Route::get('/', [SupervisionController::class, 'dashboard'])->name('dashboard');
 
         // Nuevo dashboard especializado para supervisión
         Route::get('/dashboard-global', [SupervisionController::class, 'dashboardGlobal'])->name('dashboard-global');
+
+        // Ruta para actualizar documento (solo rol 16)
+        Route::post('/actualizar-documento/{id}', [SupervisionController::class, 'actualizarDocumento'])->name('actualizar-documento');
 
         // Ruta para servir archivos por hash (sin mostrar ID)
         Route::get('file/{hash}', [DocumentoController::class, 'verArchivoPorHash'])->name('archivo.ver.hash');
 
         Route::get('debug-hash/{campus_name}/{campus_id}', [SupervisionController::class, 'debugHash'])->name('debug-hash');
         Route::get('debug-campus-list', [SupervisionController::class, 'debugCampusList'])->name('debug-campus-list');
+        Route::get('debug-cd-acuna', [SupervisionController::class, 'debugCdAcuna'])->name('debug-cd-acuna');
         Route::get('{campus_hash}', [SupervisionController::class, 'detallesCampusPorSlug'])->name('detalles');
     });
 
@@ -268,6 +289,6 @@ Route::middleware(['auth', 'verified', 'authorized.role'])->group(function () {
     })->name('reportes');
 });
 
-require __DIR__.'/test.php';
-require __DIR__.'/settings.php';
-require __DIR__.'/auth.php';
+require __DIR__ . '/test.php';
+require __DIR__ . '/settings.php';
+require __DIR__ . '/auth.php';

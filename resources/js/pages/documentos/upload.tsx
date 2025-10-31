@@ -319,24 +319,24 @@ const getVigenciaInfo = (archivo: ArchivoSubido) => {
 // Función para obtener la fecha correcta a mostrar en el panel
 const getFechaVigenciaDocumento = (documento: DocumentoRequerido) => {
     // Debug temporal: Ver exactamente qué datos tenemos
-    console.log('🔍 Documento completo:', {
-        concepto: documento.concepto,
-        estado: documento.estado,
-        archivos: documento.archivos
-    });
+    // console.log('🔍 Documento completo:', {
+    //     concepto: documento.concepto,
+    //     estado: documento.estado,
+    //     archivos: documento.archivos
+    // });
 
-    if (documento.archivos && documento.archivos.length > 0) {
-        documento.archivos.forEach((archivo, index) => {
-            console.log(`📄 Archivo ${index + 1}:`, {
-                nombre: archivo.nombre,
-                estado: archivo.estado,
-                fechaExpedicion: archivo.fechaExpedicion,
-                vigenciaDocumento: archivo.vigenciaDocumento,
-                diasRestantesVigencia: archivo.diasRestantesVigencia,
-                validacionIA: archivo.validacionIA
-            });
-        });
-    }
+    // if (documento.archivos && documento.archivos.length > 0) {
+    //     documento.archivos.forEach((archivo, index) => {
+    //         console.log(`📄 Archivo ${index + 1}:`, {
+    //             nombre: archivo.nombre,
+    //             estado: archivo.estado,
+    //             fechaExpedicion: archivo.fechaExpedicion,
+    //             vigenciaDocumento: archivo.vigenciaDocumento,
+    //             diasRestantesVigencia: archivo.diasRestantesVigencia,
+    //             validacionIA: archivo.validacionIA
+    //         });
+    //     });
+    // }
 
     // Buscar archivo aprobado que tenga información de vigencia
     const archivoAprobado = documento.archivos?.find(archivo =>
@@ -355,8 +355,8 @@ const getFechaVigenciaDocumento = (documento: DocumentoRequerido) => {
             const diffTime = fechaVigencia.getTime() - hoy.getTime();
             const diasRestantes = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-            const fuente = archivoAprobado.metadata?.vigencia_documento ? 'BD (metadata)' : 'IA (JSON)';
-            console.log(`✅ Usando vigencia desde ${fuente}:`, fechaVigenciaStr, 'Días calculados:', diasRestantes);
+            // const fuente = archivoAprobado.metadata?.vigencia_documento ? 'BD (metadata)' : 'IA (JSON)';
+            // console.log(`✅ Usando vigencia desde ${fuente}:`, fechaVigenciaStr, 'Días calculados:', diasRestantes);
 
             return {
                 fecha: fechaVigenciaStr,
@@ -366,7 +366,7 @@ const getFechaVigenciaDocumento = (documento: DocumentoRequerido) => {
         }
     }
 
-    console.log('⚠️ No hay archivos con vigencia IA, usando fechaLimite:', documento.fechaLimite);
+    // console.log('⚠️ No hay archivos con vigencia IA, usando fechaLimite:', documento.fechaLimite);
 
     // Si no hay vigencia IA, usar fechaLimite como fallback
     return {
@@ -388,40 +388,40 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
     error
 }) => {
     // 🐛 DEBUG - Log inicial de props
-    console.log('=== PROPS RECIBIDAS AL CARGAR COMPONENTE ===');
-    console.log('campusDelDirector:', campusDelDirector?.length || 0, campusDelDirector);
-    console.log('documentosIniciales:', documentosIniciales?.length || 0, documentosIniciales);
-    console.log('campusInicial:', campusInicial);
-    console.log('error:', error);
+    // console.log('=== PROPS RECIBIDAS AL CARGAR COMPONENTE ===');
+    // console.log('campusDelDirector:', campusDelDirector?.length || 0, campusDelDirector);
+    // console.log('documentosIniciales:', documentosIniciales?.length || 0, documentosIniciales);
+    // console.log('campusInicial:', campusInicial);
+    // console.log('error:', error);
 
     // 🔍 DEBUG DETALLADO - Revisar contenido de archivos en documentos iniciales
-    if (documentosIniciales && documentosIniciales.length > 0) {
-        console.log('=== DETALLE DE DOCUMENTOS INICIALES ===');
-        documentosIniciales.forEach((doc, index) => {
-            console.log(`Documento ${index + 1}:`, {
-                id: doc.id,
-                concepto: doc.concepto,
-                estado: doc.estado,
-                archivos: doc.archivos,
-                cantidad_archivos: doc.archivos?.length || 0
-            });
+    // if (documentosIniciales && documentosIniciales.length > 0) {
+    //     console.log('=== DETALLE DE DOCUMENTOS INICIALES ===');
+    //     documentosIniciales.forEach((doc, index) => {
+    //         console.log(`Documento ${index + 1}:`, {
+    //             id: doc.id,
+    //             concepto: doc.concepto,
+    //             estado: doc.estado,
+    //             archivos: doc.archivos,
+    //             cantidad_archivos: doc.archivos?.length || 0
+    //         });
 
-            if (doc.archivos && doc.archivos.length > 0) {
-                console.log(`  Archivos del documento "${doc.concepto}":`);
-                doc.archivos.forEach((archivo, archivoIndex) => {
-                    console.log(`    Archivo ${archivoIndex + 1}:`, {
-                        id: archivo.id,
-                        nombre: archivo.nombre,
-                        estado: archivo.estado,
-                        tamaño: archivo.tamaño,
-                        fechaSubida: archivo.fechaSubida
-                    });
-                });
-            } else {
-                console.log(`  Documento "${doc.concepto}" no tiene archivos`);
-            }
-        });
-    }
+    //         if (doc.archivos && doc.archivos.length > 0) {
+    //             console.log(`  Archivos del documento "${doc.concepto}":`);
+    //             doc.archivos.forEach((archivo, archivoIndex) => {
+    //                 console.log(`    Archivo ${archivoIndex + 1}:`, {
+    //                     id: archivo.id,
+    //                     nombre: archivo.nombre,
+    //                     estado: archivo.estado,
+    //                     tamaño: archivo.tamaño,
+    //                     fechaSubida: archivo.fechaSubida
+    //                 });
+    //             });
+    //         } else {
+    //             console.log(`  Documento "${doc.concepto}" no tiene archivos`);
+    //         }
+    //     });
+    // }
 
     const [campusActual, setCampusActual] = useState<Campus | null>(campusInicial);
 
@@ -432,11 +432,11 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
     }));
 
     // 🔍 DEBUG - Verificar procesamiento de documentosConArchivos
-    console.log('=== PROCESAMIENTO DOCUMENTOS CON ARCHIVOS ===');
-    console.log('documentosConArchivos procesados:', documentosConArchivos.length);
-    documentosConArchivos.forEach((doc, index) => {
-        console.log(`DocConArchivos ${index + 1}: "${doc.concepto}" - ${doc.archivos?.length || 0} archivos`);
-    });
+    // console.log('=== PROCESAMIENTO DOCUMENTOS CON ARCHIVOS ===');
+    // console.log('documentosConArchivos procesados:', documentosConArchivos.length);
+    // documentosConArchivos.forEach((doc, index) => {
+    //     console.log(`DocConArchivos ${index + 1}: "${doc.concepto}" - ${doc.archivos?.length || 0} archivos`);
+    // });
 
     const [documentos, setDocumentos] = useState<DocumentoRequerido[]>(documentosConArchivos);
     const [dragOver, setDragOver] = useState<string | null>(null);
@@ -525,19 +525,22 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
     // 🔄 FUNCIÓN PARA ACTUALIZAR DATOS DESDE EL SERVIDOR
     const refrescarDocumentosDesdeServidor = async () => {
         if (!campusActual) {
-            console.log('No hay campus actual, no se puede refrescar');
+            // console.log('No hay campus actual, no se puede refrescar');
             return;
         }
 
         try {
-            console.log('=== REFRESCANDO DOCUMENTOS DESDE SERVIDOR ===');
-            console.log('Campus actual:', campusActual.ID_Campus, campusActual.Campus);
-            console.log('Tipo de documento seleccionado:', tipoDocumento);
+            // console.log('=== REFRESCANDO DOCUMENTOS DESDE SERVIDOR ===');
+            // console.log('Campus actual:', campusActual.ID_Campus, campusActual.Campus);
+            // console.log('Tipo de documento seleccionado:', tipoDocumento);
+            // console.log('¿Campus tiene carreras médicas?', campusTieneCarrerasMedicas);
 
             // Si es tipo médico, necesitamos cargar estados por carrera
             if (tipoDocumento === 'medicos') {
+                // console.log('🔄 EJECUTANDO refrescarDocumentosMedicos()');
                 await refrescarDocumentosMedicos();
             } else {
+                // console.log('🔄 EJECUTANDO refrescarDocumentosLegales()');
                 await refrescarDocumentosLegales();
             }
         } catch (error) {
@@ -551,7 +554,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
 
     const refrescarDocumentosLegales = async () => {
         if (!campusActual) {
-            console.log('No hay campus actual para documentos legales');
+            // console.log('No hay campus actual para documentos legales');
             return;
         }
 
@@ -570,10 +573,10 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
 
             if (response.ok) {
                 const data = await response.json();
-                console.log('Respuesta del servidor (legales):', data);
+                // console.log('Respuesta del servidor (legales):', data);
 
                 if (data.props?.documentosRequeridos) {
-                    console.log('Documentos legales recibidos:', data.props.documentosRequeridos.length);
+                    // console.log('Documentos legales recibidos:', data.props.documentosRequeridos.length);
 
                     const documentosActualizados = (data.props.documentosRequeridos || []).map((doc: any) => ({
                         ...doc,
@@ -581,26 +584,26 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                     }));
 
                     setDocumentos(documentosActualizados);
-                    console.log('Documentos legales actualizados');
+                    // console.log('Documentos legales actualizados');
 
                     // Actualizar documento seleccionado si corresponde
                     if (selectedDocumento) {
                         const docActualizado = documentosActualizados.find((d: any) => d.id === selectedDocumento.id);
                         if (docActualizado) {
                             setSelectedDocumento(docActualizado);
-                            console.log('Documento seleccionado actualizado');
+                            // console.log('Documento seleccionado actualizado');
                         }
                     } else if (documentosActualizados.length > 0) {
                         // Si no hay documento seleccionado, seleccionar el primero
                         setSelectedDocumento(documentosActualizados[0]);
-                        console.log('Primer documento seleccionado por defecto');
+                        // console.log('Primer documento seleccionado por defecto');
                     }
 
                     // Marcar como listo para mostrar inmediatamente
                     setDocumentosListosParaMostrar(true);
                     setCargandoDocumentosCompleto(false);
                 } else {
-                    console.log('No se recibieron documentos legales en la respuesta');
+                    // console.log('No se recibieron documentos legales en la respuesta');
                     setCargandoDocumentosCompleto(false);
                     setDocumentosListosParaMostrar(true);
                 }
@@ -618,12 +621,13 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
 
     const refrescarDocumentosMedicos = async () => {
         if (!campusActual) {
-            console.log('No hay campus actual para documentos médicos');
+            // console.log('❌ No hay campus actual para documentos médicos');
             return;
         }
 
-        console.log('=== REFRESCANDO DOCUMENTOS MÉDICOS OPTIMIZADO ===');
-        console.log('Campus:', campusActual.ID_Campus, campusActual.Campus);
+        // console.log('=== REFRESCANDO DOCUMENTOS MÉDICOS CON STORED PROCEDURE ===');
+        // console.log('Campus:', campusActual.ID_Campus, campusActual.Campus);
+        // console.log('URL que se va a llamar:', `/documentos/medicos-con-sp?campus_id=${campusActual.ID_Campus}`);
 
         // Mostrar indicador de carga unificada
         setCargandoDocumentosCompleto(true);
@@ -631,11 +635,11 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
         setCargandoDocumentosMedicos(true);
 
         try {
-            // 🚀 NUEVA CONSULTA OPTIMIZADA: Una sola petición para todos los documentos médicos
+            // 🚀 NUEVA CONSULTA CON STORED PROCEDURE: Una sola petición usando SP optimizado
             const tiempoInicio = Date.now();
-            console.log('🔄 Realizando consulta optimizada...');
+            // console.log('🔄 Realizando consulta con stored procedure...');
 
-            const response = await fetch(`/documentos/medicos-optimizado?campus_id=${campusActual.ID_Campus}`, {
+            const response = await fetch(`/documentos/medicos-con-sp?campus_id=${campusActual.ID_Campus}`, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
@@ -649,53 +653,123 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
 
             const data = await response.json();
             const tiempoTotal = Date.now() - tiempoInicio;
-            console.log(`⚡ Consulta optimizada completada en ${tiempoTotal}ms`);
-            console.log('Respuesta optimizada:', data);
+            // console.log(`⚡ Consulta con stored procedure completada en ${tiempoTotal}ms`);
+            // console.log('Respuesta del stored procedure:', data);
 
-            if (!data.success || !data.carreras || !data.documentos_por_carrera) {
-                console.log('No se recibieron datos válidos de documentos médicos');
+            // Debug detallado de los datos recibidos
+            // console.log('=== DEBUG DATOS DEL SP ===');
+            // console.log('Carreras médicas recibidas:', data.carreras_medicas?.length || 0);
+            // console.log('Documentos agrupados:', data.documentos_agrupados?.length || 0);
+            // console.log('Documentos detalle keys:', Object.keys(data.documentos_detalle || {}));
+            // console.log('Documentos agrupados completo:', data.documentos_agrupados);
+            // console.log('Documentos detalle completo:', data.documentos_detalle);
+
+            if (!data.success || !data.carreras_medicas) {
+                // console.log('No se recibieron datos válidos del stored procedure');
                 setDocumentosMedicosConEstado([]);
                 return;
             }
 
-            // 🔄 PROCESAR RESPUESTA OPTIMIZADA
-            const carrerasRecibidas = data.carreras;
-            const documentosPorCarrera = data.documentos_por_carrera;
+            // 🔄 PROCESAR RESPUESTA DEL STORED PROCEDURE
+            const carrerasRecibidas = data.carreras_medicas;
+            const documentosAgrupados = data.documentos_agrupados || []; // Datos estadísticos del SP
+            const documentosDetalle = data.documentos_detalle || {}; // Documentos específicos por carrera
 
-            console.log(`📋 Procesando ${carrerasRecibidas.length} carreras médicas...`);
+            // console.log(`📋 Procesando ${carrerasRecibidas.length} carreras médicas desde stored procedure...`);
 
             // ✅ ACTUALIZAR CARRERAS MÉDICAS EN EL ESTADO
             setCarrerasMedicas(carrerasRecibidas);
-            console.log('🔄 Carreras médicas actualizadas en el estado:', carrerasRecibidas);            // Buscar documentos base de "cartas de intención" en documentos actuales
+            // console.log('🔄 Carreras médicas actualizadas en el estado:', carrerasRecibidas);
+
+            // Buscar documentos base de "cartas de intención" en documentos actuales
             const cartasOriginales = documentos.filter(doc =>
                 doc.concepto.toLowerCase().includes('cartas de intención de campo clínico')
             );
 
             if (cartasOriginales.length === 0) {
-                console.log('No se encontraron documentos base de cartas de intención');
+                // console.log('No se encontraron documentos base de cartas de intención');
                 setDocumentosMedicosConEstado([]);
                 return;
             }
 
             if (!carrerasRecibidas || carrerasRecibidas.length === 0) {
-                console.log('No se recibieron carreras médicas');
+                // console.log('No se recibieron carreras médicas');
                 setDocumentosMedicosConEstado([]);
                 return;
             }
 
-            // Generar documentos médicos con estados ya cargados
+            // ✅ NUEVA LÓGICA: Usar SOLO los datos agrupados del SP para evitar duplicados
             const documentosConEstado: DocumentoRequerido[] = [];
 
-            carrerasRecibidas.forEach((carrera: any) => {
-                const carreraId = carrera.ID_Especialidad;
-                const carreraNombre = carrera.Descripcion;
-                const documentosCarrera = documentosPorCarrera[carreraId] || [];
+            // En lugar de iterar carreras y crear documentos, usar directamente los datos agrupados
+            if (documentosAgrupados && documentosAgrupados.length > 0) {
+                // console.log('🎯 Usando documentos agrupados del SP directamente');
 
-                cartasOriginales.forEach(docOriginal => {
+                documentosAgrupados.forEach((datosCarrera: any, index: number) => {
+                    const carreraNombre = datosCarrera.carrera_nombre;
+
+                    // 🔧 OBTENER carrera_id DIRECTAMENTE DEL SP (no buscar por nombre)
+                    // El SP ya trae el carrera_id_rep correcto (ID_Especialidad mínimo del grupo)
+                    let carreraId = null;
+
+                    // Buscar en documentos_detalle para obtener el carrera_id real del SP
+                    const documentosCarreraDetalle = documentosDetalle[carreraNombre] || [];
+                    if (documentosCarreraDetalle.length > 0 && documentosCarreraDetalle[0].carrera_id) {
+                        carreraId = documentosCarreraDetalle[0].carrera_id;
+                        // console.log(`✅ carrera_id obtenido del SP detalle para "${carreraNombre}":`, carreraId);
+                    } else {
+                        // Fallback: buscar en carrerasRecibidas
+                        const carreraInfo = carrerasRecibidas.find((c: any) => c.Descripcion === carreraNombre);
+                        carreraId = carreraInfo?.ID_Especialidad;
+                        // console.log(`⚠️ carrera_id obtenido de carrerasRecibidas para "${carreraNombre}":`, carreraId);
+                    }
+
+                    if (!carreraId) {
+                        console.error(`❌ No se pudo obtener carrera_id para "${carreraNombre}". Saltando...`);
+                        return; // Saltar esta carrera si no tiene ID
+                    }                    // Usar el primer documento base como template
+                    const docOriginal = cartasOriginales[0];
                     const uniqueKey = `${docOriginal.id}_carrera_${carreraId}`;
 
-                    // Buscar el documento específico en los resultados
-                    const documentoConDatos = documentosCarrera.find((d: any) => d.id === docOriginal.id);
+                    // Crear archivos basándose en los documentos del detalle
+                    const documentosCarrera = documentosDetalle[carreraNombre] || [];
+                    const archivosDoc: ArchivoSubido[] = documentosCarrera
+                        .filter((doc: any) => doc.archivo_id) // Solo documentos con archivo_id real
+                        .map((doc: any) => ({
+                            id: doc.archivo_id.toString(),
+                            nombre: doc.nombre_documento || doc.folio_documento || 'Documento médico',
+                            tamaño: null,
+                            fechaSubida: doc.subido_en || new Date().toISOString().split('T')[0],
+                            estado: 'completado' as ArchivoSubido['estado'],
+                            progreso: 100,
+                            fechaExpedicion: doc.fecha_expedicion,
+                            vigenciaDocumento: doc.vigencia_documento,
+                            diasRestantesVigencia: doc.dias_restantes_vigencia,
+                            metadata: {
+                                folio_documento: doc.folio_documento,
+                                fecha_expedicion: doc.fecha_expedicion,
+                                vigencia_documento: doc.vigencia_documento,
+                                estado_bd: doc.estado_final
+                            }
+                        }));
+
+                    // Determinar estado basándose en las estadísticas del SP y archivos reales
+                    let estadoDoc: DocumentoRequerido['estado'] = 'pendiente';
+
+                    // Solo cambiar el estado si hay archivos reales o estadísticas válidas
+                    if (archivosDoc.length > 0) {
+                        // Si hay archivos reales, usar las estadísticas del SP
+                        if (datosCarrera.Vigentes > 0) {
+                            estadoDoc = 'vigente';
+                        } else if (datosCarrera.Caducados > 0) {
+                            estadoDoc = 'caducado';
+                        } else if (datosCarrera.Rechazados > 0) {
+                            estadoDoc = 'rechazado';
+                        }
+                    } else {
+                        // Si no hay archivos reales, mantener como pendiente independientemente de las estadísticas
+                        estadoDoc = 'pendiente';
+                    }
 
                     const documentoGenerado: DocumentoRequerido = {
                         ...docOriginal,
@@ -706,41 +780,82 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                         descripcion: `${docOriginal.descripcion} para la carrera de ${carreraNombre}`,
                         carreraId: String(carreraId), // Agregar ID de carrera como string
                         carreraNombre: carreraNombre, // Agregar nombre de carrera
-                        // Usar datos del servidor si están disponibles, sino valores por defecto
-                        estado: documentoConDatos?.estado || 'pendiente' as DocumentoRequerido['estado'],
-                        archivos: documentoConDatos?.archivos || []
+                        estado: estadoDoc,
+                        archivos: archivosDoc
                     };
 
-                    console.log(`✅ Documento generado para ${carreraNombre}:`, {
-                        uniqueKey: documentoGenerado.uniqueKey,
-                        estado: documentoGenerado.estado,
-                        totalArchivos: documentoGenerado.archivos?.length || 0
-                    });
+                    // console.log(`✅ Documento generado para ${carreraNombre} desde SP agrupado:`, {
+                    //     uniqueKey: documentoGenerado.uniqueKey,
+                    //     estado: documentoGenerado.estado,
+                    //     totalArchivos: documentoGenerado.archivos?.length || 0,
+                    //     estadisticas: {
+                    //         vigentes: datosCarrera.Vigentes,
+                    //         pendientes: datosCarrera.Pendientes,
+                    //         caducados: datosCarrera.Caducados,
+                    //         rechazados: datosCarrera.Rechazados
+                    //     }
+                    // });
 
                     documentosConEstado.push(documentoGenerado);
                 });
-            });
+            } else {
+                // console.log('🔄 No hay datos agrupados del SP, generando documentos por carreras');
 
-            console.log(`📚 Total documentos médicos generados: ${documentosConEstado.length}`);
+                // Fallback: generar documentos por carreras si no hay datos agrupados
+                carrerasRecibidas.forEach((carrera: any) => {
+                    const carreraId = carrera.ID_Especialidad;
+                    const carreraNombre = carrera.Descripcion;
+
+                    cartasOriginales.forEach(docOriginal => {
+                        const uniqueKey = `${docOriginal.id}_carrera_${carreraId}`;
+
+                        const documentoGenerado: DocumentoRequerido = {
+                            ...docOriginal,
+                            id: docOriginal.id,
+                            documentoOriginalId: docOriginal.id,
+                            uniqueKey: uniqueKey,
+                            concepto: `${docOriginal.concepto} - ${carreraNombre}`,
+                            descripcion: `${docOriginal.descripcion} para la carrera de ${carreraNombre}`,
+                            carreraId: String(carreraId),
+                            carreraNombre: carreraNombre,
+                            estado: 'pendiente' as DocumentoRequerido['estado'],
+                            archivos: []
+                        };
+
+                        documentosConEstado.push(documentoGenerado);
+                    });
+                });
+            }
+
+            // console.log(`📚 Total documentos médicos generados: ${documentosConEstado.length}`);
 
             // Actualizar el estado SEPARADO para documentos médicos
             setDocumentosMedicosConEstado(documentosConEstado);
-            console.log('📋 Documentos médicos actualizados en estado separado');
+            // console.log('📋 Documentos médicos actualizados en estado separado');
 
-            // Actualizar documento seleccionado si corresponde
-            if (selectedDocumento && selectedDocumento.uniqueKey) {
-                const docActualizado = documentosConEstado.find((d: any) => d.uniqueKey === selectedDocumento.uniqueKey);
-                if (docActualizado) {
-                    setSelectedDocumento(docActualizado);
-                    console.log('Documento médico seleccionado actualizado');
+            // ✅ SINCRONIZAR DOCUMENTO SELECCIONADO CON DATOS MÉDICOS ACTUALIZADOS
+            if (selectedDocumento && tipoDocumento === 'medicos') {
+                // Si el documento seleccionado es médico, buscar la versión actualizada
+                const docActualizadoMedico = documentosConEstado.find((d: any) =>
+                    d.uniqueKey === selectedDocumento.uniqueKey ||
+                    (d.carreraNombre === selectedDocumento.carreraNombre && d.documentoOriginalId === selectedDocumento.documentoOriginalId)
+                );
+
+                if (docActualizadoMedico) {
+               //     console.log('🔄 Actualizando documento médico seleccionado con datos del SP:', docActualizadoMedico.concepto);
+                    setSelectedDocumento(docActualizadoMedico);
+                } else if (documentosConEstado.length > 0) {
+                   // console.log('🔄 Seleccionando primer documento médico actualizado:', documentosConEstado[0].concepto);
+                    setSelectedDocumento(documentosConEstado[0]);
                 }
-            } else if (documentosConEstado.length > 0) {
+            } else if (!selectedDocumento && documentosConEstado.length > 0) {
+                // Si no hay documento seleccionado, seleccionar el primero
+                // console.log('🔄 Seleccionando primer documento médico por defecto:', documentosConEstado[0].concepto);
                 setSelectedDocumento(documentosConEstado[0]);
-                console.log('Primer documento médico seleccionado por defecto');
             }
 
         } catch (error) {
-            console.error('Error en consulta optimizada de documentos médicos:', error);
+            //console.error('Error en consulta optimizada de documentos médicos:', error);
             setDocumentosMedicosConEstado([]);
         } finally {
             // Marcar como completado inmediatamente
@@ -751,7 +866,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
     };    // 🔄 AUTO-REFRESH DESPUÉS DE SUBIR ARCHIVOS
     const programarActualizacionAutomatica = () => {
         setTimeout(() => {
-            console.log('Actualizando panel automáticamente...');
+            // console.log('Actualizando panel automáticamente...');
             refrescarDocumentosDesdeServidor();
         }, 2000); // Esperar 2 segundos después de subir
     };
@@ -777,10 +892,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
 
     // 🚀 CARGA INICIAL - Asegurar que se carguen los documentos del campus inicial
     useEffect(() => {
-        console.log('=== CARGA INICIAL DEL COMPONENTE ===');
-        console.log('Campus inicial:', campusInicial);
-        console.log('Campus actual:', campusActual);
-        console.log('Documentos iniciales:', documentosIniciales?.length || 0);
+
 
         // Siempre empezar con indicador de carga en la primera renderización
         setCargandoDocumentosCompleto(true);
@@ -792,16 +904,14 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
 
         if (campusInicial && (noHayDocumentos || documentosVacios)) {
             if (noHayDocumentos) {
-                console.log('Campus inicial detectado SIN documentos, refrescando desde servidor...');
+                // console.log('Campus inicial detectado SIN documentos, refrescando desde servidor...');
             } else {
-                console.log('Campus inicial detectado con documentos VACÍOS (sin archivos), refrescando desde servidor...');
+                // console.log('Campus inicial detectado con documentos VACÍOS (sin archivos), refrescando desde servidor...');
             }
 
             // Crear función de refresco específica para carga inicial que no dependa de campusActual
             const refrescarInicial = async () => {
                 try {
-                    console.log('=== REFRESCANDO DOCUMENTOS CARGA INICIAL ===');
-                    console.log('Campus inicial:', campusInicial.ID_Campus, campusInicial.Campus);
 
                     // Usar la misma ruta que handleCampusChange para asegurar compatibilidad
                     const response = await fetch('/documentos/cambiar-campus', {
@@ -816,11 +926,11 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
 
                     if (response.ok) {
                         const data = await response.json();
-                        console.log('Respuesta del servidor (carga inicial):', data);
+                     //   console.log('Respuesta del servidor (carga inicial):', data);
 
                         // La respuesta de cambiar-campus devuelve { campus, documentos } directamente
                         if (data.documentos) {
-                            console.log('Documentos recibidos (carga inicial):', data.documentos.length);
+                          //  console.log('Documentos recibidos (carga inicial):', data.documentos.length);
 
                             const documentosActualizados = (data.documentos || []).map((doc: any) => ({
                                 ...doc,
@@ -828,29 +938,29 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                             }));
 
                             setDocumentos(documentosActualizados);
-                            console.log('Documentos estado actualizado (carga inicial)');
+                            // console.log('Documentos estado actualizado (carga inicial)');
 
                             // Seleccionar primer documento si hay documentos
                             if (documentosActualizados.length > 0) {
                                 setSelectedDocumento(documentosActualizados[0]);
-                                console.log('Primer documento seleccionado por defecto (carga inicial)');
+                                // console.log('Primer documento seleccionado por defecto (carga inicial)');
                             }
 
                             // Marcar como completo inmediatamente
                             setDocumentosListosParaMostrar(true);
                             setCargandoDocumentosCompleto(false);
                         } else {
-                            console.log('No se recibieron documentos en la respuesta (carga inicial)');
+                            // console.log('No se recibieron documentos en la respuesta (carga inicial)');
                             setCargandoDocumentosCompleto(false);
                             setDocumentosListosParaMostrar(true);
                         }
                     } else {
-                        console.error('Error al cargar documentos iniciales:', response.status, response.statusText);
+                      //  console.error('Error al cargar documentos iniciales:', response.status, response.statusText);
                         setCargandoDocumentosCompleto(false);
                         setDocumentosListosParaMostrar(true);
                     }
                 } catch (error) {
-                    console.error('Error al refrescar documentos (carga inicial):', error);
+                   // console.error('Error al refrescar documentos (carga inicial):', error);
                     setCargandoDocumentosCompleto(false);
                     setDocumentosListosParaMostrar(true);
                 }
@@ -859,15 +969,10 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
             // Ejecutar la carga inicial inmediatamente
             refrescarInicial();
         } else if (campusInicial && documentosIniciales && documentosIniciales.length > 0 && !documentosVacios) {
-            console.log('Campus inicial detectado CON documentos válidos Y CON ARCHIVOS, usando documentos iniciales...');
-            console.log('Documentos iniciales disponibles:', documentosIniciales.length);
-            console.log('Estado documentos actual:', documentos.length);
-            console.log('Documento seleccionado actual:', selectedDocumento?.concepto || 'ninguno');
-
             // El estado documentos ya debe estar inicializado correctamente
             // Solo necesitamos asegurar que hay un documento seleccionado
             if (!selectedDocumento && documentos.length > 0) {
-                console.log('Seleccionando primer documento por defecto:', documentos[0].concepto);
+
                 setSelectedDocumento(documentos[0]);
             } else if (!selectedDocumento && documentosIniciales.length > 0) {
                 // Fallback: usar documentos iniciales si el estado no está listo
@@ -875,17 +980,17 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                     ...documentosIniciales[0],
                     archivos: documentosIniciales[0].archivos || []
                 };
-                console.log('Fallback: Seleccionando primer documento de documentos iniciales:', primerDocumento.concepto);
+              //  console.log('Fallback: Seleccionando primer documento de documentos iniciales:', primerDocumento.concepto);
                 setSelectedDocumento(primerDocumento);
             } else if (selectedDocumento) {
-                console.log('Ya hay un documento seleccionado:', selectedDocumento.concepto);
+              //  console.log('Ya hay un documento seleccionado:', selectedDocumento.concepto);
             }
 
             // Marcar como listo inmediatamente para datos existentes
             setDocumentosListosParaMostrar(true);
             setCargandoDocumentosCompleto(false);
         } else {
-            console.log('No hay campus inicial, usando documentos proporcionados');
+           // console.log('No hay campus inicial, usando documentos proporcionados');
             // Si hay documentos iniciales, asegurar que el primer documento esté seleccionado
             if (documentosIniciales && documentosIniciales.length > 0) {
                 const documentosActualizados = documentosIniciales.map(doc => ({
@@ -893,11 +998,11 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                     archivos: doc.archivos || []
                 }));
 
-                console.log('Actualizando estado con documentos proporcionados');
+              //  console.log('Actualizando estado con documentos proporcionados');
                 setDocumentos(documentosActualizados);
 
                 if (!selectedDocumento && documentosActualizados.length > 0) {
-                    console.log('Seleccionando primer documento por defecto');
+                 //   console.log('Seleccionando primer documento por defecto');
                     setSelectedDocumento(documentosActualizados[0]);
                 }
 
@@ -914,20 +1019,16 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
 
     // � ASEGURAR DOCUMENTO SELECCIONADO - Ejecutar cuando cambien los documentos
     useEffect(() => {
-        console.log('=== ESTADO DOCUMENTOS CAMBIÓ ===');
-        console.log('Documentos en estado:', documentos.length);
-        console.log('Documento seleccionado:', selectedDocumento?.concepto || 'ninguno');
-
         // 🔍 DEBUG - Revisar archivos en el estado de documentos
         if (documentos.length > 0) {
-            console.log('=== DETALLE DE DOCUMENTOS EN ESTADO ===');
+
             documentos.forEach((doc, index) => {
                 const totalArchivos = doc.archivos?.length || 0;
-                console.log(`Estado Doc ${index + 1}: "${doc.concepto}" - ${totalArchivos} archivos`);
+
 
                 if (totalArchivos > 0) {
                     doc.archivos?.forEach((archivo, archivoIndex) => {
-                        console.log(`  Estado Archivo ${archivoIndex + 1}: ${archivo.nombre} (${archivo.estado})`);
+
                     });
                 }
             });
@@ -935,16 +1036,13 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
 
         // Si hay documentos pero no hay documento seleccionado, seleccionar el primero
         if (documentos.length > 0 && !selectedDocumento) {
-            console.log('Auto-seleccionando primer documento:', documentos[0].concepto);
+           // console.log('Auto-seleccionando primer documento:', documentos[0].concepto);
             setSelectedDocumento(documentos[0]);
         }
     }, [documentos, selectedDocumento]); // Ejecutar cuando cambien documentos o documento seleccionado
 
     // CARGAR ANALISIS - Cargar analisis de archivos completados
     useEffect(() => {
-        console.log('=== VERIFICANDO ANALISIS DE ARCHIVOS ===');
-        console.log('Documentos actuales:', documentos.length);
-
         const archivosCompletados = documentos.flatMap(doc =>
             (doc.archivos || []).filter(archivo =>
                 archivo.estado === 'completado' &&
@@ -953,16 +1051,10 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
             )
         );
 
-        console.log('Archivos completados sin analisis:', archivosCompletados.length);
-        archivosCompletados.forEach(archivo => {
-            console.log(`- ${archivo.nombre} (${archivo.estado})`);
-        });
 
-        if (archivosCompletados.length > 0) {
-            console.log('Archivos completados detectados, datos deberían venir del backend');
-        } else {
-            console.log('Todos los archivos ya tienen analisis o no hay archivos completados');
-        }
+        archivosCompletados.forEach(archivo => {
+
+        });
     }, [documentos]);
 
     // 🔄 DETECTAR CAMBIOS EN FECHAS DE ARCHIVOS Y ACTUALIZAR selectedDocumento
@@ -972,7 +1064,6 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
             const docActualizado = documentos.find(d =>
                 getDocumentKey(d) === getDocumentKey(selectedDocumento)
             );
-
             if (docActualizado) {
                 // Verificar si hay diferencias en las fechas de los archivos
                 const hayDiferencias = docActualizado.archivos?.some((archivoActualizado, index) => {
@@ -985,27 +1076,23 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                 });
 
                 if (hayDiferencias) {
-                    console.log('🔄 FECHAS ACTUALIZADAS DETECTADAS - Actualizando selectedDocumento');
+
                     setSelectedDocumento(docActualizado);
                 }
             }
         }
     }, [documentos]); // Se ejecuta cuando cambia documentos
 
-    // 🔄 SINCRONIZACIÓN - Refrescar cuando cambie el campus actual
+    // SINCRONIZACIÓN - Refrescar cuando cambie el campus actual
     useEffect(() => {
         if (campusActual && campusActual.ID_Campus) {
-            console.log('=== CAMPUS ACTUAL CAMBIÓ ===');
-            console.log('Nuevo campus actual:', campusActual.ID_Campus, campusActual.Campus);
-            console.log('Documentos actuales:', documentos.length);
-
             // Solo refrescar si no hay documentos o si hay muy pocos
             // (esto evita refrescos innecesarios cuando ya hay datos)
             if (documentos.length === 0) {
-                console.log('No hay documentos, refrescando...');
+
                 refrescarDocumentosDesdeServidor();
             } else {
-                console.log('Ya hay documentos cargados, no refrescando automáticamente');
+               //
             }
         }
     }, [campusActual]); // Ejecutar cuando cambie campusActual
@@ -1074,9 +1161,6 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
     };
 
     const handleCampusChange = async (campusId: string) => {
-        console.log('=== CAMBIO DE CAMPUS ===');
-        console.log('Nuevo campus ID:', campusId);
-
         // Mostrar indicador de carga unificada
         setCargandoDocumentosCompleto(true);
         setDocumentosListosParaMostrar(false);
@@ -1089,10 +1173,8 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
 
             if (response.ok) {
                 const data = await response.json();
-                console.log('Respuesta del servidor:', data);
 
                 setCampusActual(data.campus);
-                console.log('Campus actualizado:', data.campus);
 
                 // Asegurar que cada documento tenga el campo archivos
                 const documentosConArchivos = data.documentos.map((doc: any) => ({
@@ -1100,7 +1182,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                     archivos: doc.archivos || []
                 }));
 
-                console.log('Documentos cargados:', documentosConArchivos.length);
+
                 setDocumentos(documentosConArchivos);
                 setSelectedDocumento(documentosConArchivos[0] || null);
 
@@ -1117,12 +1199,12 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                 setDocumentosListosParaMostrar(true);
                 setCargandoDocumentosCompleto(false);
             } else {
-                console.error('Error en la respuesta del servidor:', response.status, response.statusText);
+
                 setCargandoDocumentosCompleto(false);
                 setDocumentosListosParaMostrar(true);
             }
         } catch (error) {
-            console.error('Error cambiando campus:', error);
+
             setCargandoDocumentosCompleto(false);
             setDocumentosListosParaMostrar(true);
         }
@@ -1132,28 +1214,28 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
     const verificarCampusMedico = async (campusId: string) => {
         if (!campusId) return;
 
+
         setVerificandoCampusMedico(true);
         try {
-            console.log(`=== VERIFICANDO CARRERAS MÉDICAS PARA CAMPUS ${campusId} ===`);
             const response = await csrfFetch(`/documentos/campus/${campusId}/medico`);
+
             if (response.ok) {
                 const data = await response.json();
+
                 setCampusTieneCarrerasMedicas(data.tiene_carreras_medicas);
                 setCarrerasMedicas(data.carreras_medicas || []);
-                console.log(`✅ Campus ${campusId} tiene carreras médicas:`, data.tiene_carreras_medicas);
-                console.log('📋 Carreras médicas disponibles:', data.carreras_medicas);
 
                 // Log detallado de cada carrera
                 (data.carreras_medicas || []).forEach((carrera: CarreraMedica) => {
-                    console.log(`  - ID_Especialidad: ${carrera.ID_Especialidad}, Descripcion: ${carrera.Descripcion}`);
+
                 });
             } else {
-                console.error('❌ Error verificando campus médico:', response.status);
+
                 setCampusTieneCarrerasMedicas(false);
                 setCarrerasMedicas([]);
             }
         } catch (error) {
-            console.error('❌ Error verificando campus médico:', error);
+
             setCampusTieneCarrerasMedicas(false);
             setCarrerasMedicas([]);
         } finally {
@@ -1180,40 +1262,42 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
     };
 
     const handleFileSelection = (files: File[], documentoId: string) => {
-        console.log('=== HANDLE FILE SELECTION ===');
-        console.log('Files received:', files);
-        console.log('DocumentoId:', documentoId);
-        console.log('Current selectedFiles before update:', selectedFiles);
+
+
+        // VALIDAR QUE SOLO SEAN ARCHIVOS PDF
+        const pdfFiles = files.filter(file => {
+            const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+            if (!isPDF) {
+
+                // Mostrar mensaje de error al usuario
+                alert(`El archivo "${file.name}" no es un PDF válido. Solo se permiten archivos PDF.`);
+            }
+            return isPDF;
+        });
+
+        if (pdfFiles.length === 0) {
+
+            return;
+        }
+
 
         setSelectedFiles(prev => {
             const updated = {
                 ...prev,
-                [documentoId]: [...(prev[documentoId] || []), ...files]
+                [documentoId]: [...(prev[documentoId] || []), ...pdfFiles]
             };
-            console.log('Updated selectedFiles:', updated);
+
             return updated;
         });
     };
 
     const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>, documentoId: string) => {
-        console.log('=== HANDLE FILE INPUT CHANGE ===');
-        console.log('Event target files:', e.target.files);
-        console.log('DocumentoId:', documentoId);
 
         if (e.target.files) {
             const files = Array.from(e.target.files);
-            console.log('Files array:', files);
-            console.log('Files length:', files.length);
-            files.forEach((file, index) => {
-                console.log(`File ${index}:`, {
-                    name: file.name,
-                    size: file.size,
-                    type: file.type
-                });
-            });
             handleFileSelection(files, documentoId);
         } else {
-            console.log('❌ No files in event target');
+
         }
     };
 
@@ -1225,34 +1309,22 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
     };
 
     const uploadFiles = async (documentoKey: string) => {
-        console.log('INICIANDO UPLOAD - DocumentoKey:', documentoKey);
-        console.log('Tipo de documento actual:', tipoDocumento);
-        console.log('DocumentosDelTipo disponibles:', documentosDelTipo.length);
+
         documentosDelTipo.forEach((doc, index) => {
             console.log(`  Doc ${index}: key="${getDocumentKey(doc)}", uniqueKey="${doc.uniqueKey}", id="${doc.id}"`);
         });
 
         const files = selectedFiles[documentoKey];
-        console.log('Archivos a subir:', files);
-        console.log('Estado completo selectedFiles:', selectedFiles);
 
         // Encontrar el documento para obtener información de carrera
         // Buscar por uniqueKey (documentos médicos) o por id (documentos legales)
         const documento = documentosDelTipo.find(doc => getDocumentKey(doc) === documentoKey);
         if (!documento) {
-            console.error('Documento no encontrado con clave:', documentoKey);
-            console.error('Claves disponibles:', documentosDelTipo.map(doc => getDocumentKey(doc)));
+
             alert('Error: Documento no encontrado');
             return;
         }
 
-        console.log('Documento encontrado:', {
-            id: documento.id,
-            uniqueKey: documento.uniqueKey,
-            documentoOriginalId: documento.documentoOriginalId,
-            carreraId: documento.carreraId,
-            carreraNombre: documento.carreraNombre
-        });
 
         if (!files || files.length === 0) {
             console.log('No hay archivos para subir');
@@ -1269,7 +1341,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
         // Validar que se haya seleccionado carrera para documentos médicos (ahora será automático)
         // Ya no necesitamos esta validación porque cada documento ya tiene su carrera asignada
 
-        console.log('Campus actual:', campusActual.ID_Campus);
+
 
         // Activar el loader
         setIsUploading(true);
@@ -1285,12 +1357,11 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
             [documentoKey]: []
         }));
 
-        console.log(`Procesando ${files.length} archivo(s)...`);
+
 
         // Procesar cada archivo
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
-            console.log(`Procesando archivo ${i + 1}/${files.length}: ${file.name}`);
 
             // Actualizar loader para este archivo
             setCurrentFileName(file.name);
@@ -1306,16 +1377,18 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                 const documentoIdParaBackend = documento.documentoOriginalId || documento.id;
                 formData.append('documento_id', documentoIdParaBackend.toString());
                 formData.append('campus_id', campusActual.ID_Campus);
-                console.log('Usando documento_id para backend:', documentoIdParaBackend, '(original:', documento.documentoOriginalId, ', compuesto:', documento.id, ')');
 
                 // Si el documento tiene carreraId (documentos médicos), agregarlo como carrera_id (que es ID_Especialidad)
                 if (documento.carreraId) {
-                    formData.append('carrera_id', documento.carreraId);
-                    console.log('Agregando carrera_id (ID_Especialidad):', documento.carreraId, 'para carrera:', documento.carreraNombre);
+                    const carreraIdStr = String(documento.carreraId); // Asegurar que sea string
+                    formData.append('carrera_id', carreraIdStr);
+
+                } else {
+                   // No hacer nada, ya que no se requiere carrera_id
                 }                // Debug del FormData
-                console.log('=== DEBUG FORMDATA ===');
+
                 for (let pair of formData.entries()) {
-                    console.log(pair[0] + ':', pair[1]);
+
                 }
 
                 // Simular progreso visual en el loader
@@ -1331,11 +1404,9 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                 setUploadProgress(75);
                 setUploadMessage(`Finalizando subida de ${file.name}...`);
 
-                console.log('Iniciando petición de subida real...');
 
                 // Obtener token CSRF manualmente
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-                console.log('CSRF Token:', csrfToken);
 
                 // Crear una nueva FormData para asegurar que está limpia
                 const testFormData = new FormData();
@@ -1348,11 +1419,11 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                     testFormData.append('carrera_id', documento.carreraId);
                 }
 
-                console.log('Testing with fresh FormData:');
+
                 for (let pair of testFormData.entries()) {
-                    console.log(`  ${pair[0]}:`, pair[1]);
+
                     if (pair[1] instanceof File) {
-                        console.log(`    File details: name=${pair[1].name}, size=${pair[1].size}, type=${pair[1].type}`);
+
                     }
                 }
 
@@ -1365,22 +1436,16 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                     body: testFormData
                 });
 
-                console.log('Status de respuesta:', response.status, response.statusText);
-                console.log('Headers de respuesta:', response.headers);
 
                 // Obtener el texto crudo de la respuesta antes de parsearlo
                 const responseText = await response.text();
-                console.log('Respuesta RAW del servidor:', responseText);
-
                 if (response.ok) {
                     try {
                         const data = JSON.parse(responseText);
-                        console.log('Respuesta parseada exitosamente:', data);
 
                         // Verificar si realmente se subió el archivo
                         if (!data.archivo || !data.archivo.estado) {
-                            console.error('El servidor no procesó el archivo correctamente');
-                            console.error('data.archivo:', data.archivo);
+
                             setUploadMessage(`Error: El archivo no se procesó correctamente en el servidor`);
                             setIsUploading(false);
                             return;
@@ -1399,7 +1464,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                             await new Promise(resolve => setTimeout(resolve, 2000));
                         }
 
-                        // 🔄 ACTUALIZAR INMEDIATAMENTE EL PANEL CON EL ARCHIVO SUBIDO
+                        // ACTUALIZAR INMEDIATAMENTE EL PANEL CON EL ARCHIVO SUBIDO
                         const nuevoArchivo: ArchivoSubido = {
                             id: data.archivo.id,
                             nombre: file.name,
@@ -1450,21 +1515,13 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                 return newSet;
                             });
                         }, 5000); // 5 segundos de animación
-
-                        console.log('Archivo agregado inmediatamente al panel:', nuevoArchivo);
-
                         // Si hay análisis, monitorear (solo 1 intento para evitar bucles infinitos)
                         if (data.archivo.estado === 'analizando') {
                             monitorearAnalisis(data.archivo.id, documentoKey, 1);
                         }
-
-                        // PROGRAMAR ACTUALIZACIÓN AUTOMÁTICA DEL PANEL (como backup)
-                        console.log('Programando actualización automática del panel...');
                         programarActualizacionAutomatica();
 
                     } catch (parseError) {
-                        console.error('Error parseando JSON:', parseError);
-                        console.error('Respuesta no es JSON válido:', responseText);
                         setUploadMessage(`Error: El servidor devolvió una respuesta inválida`);
                         setIsUploading(false);
                         return;
@@ -1472,29 +1529,26 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
 
                 } else {
                     // También capturar respuesta cruda para errores
-                    console.log('Status de error:', response.status, response.statusText);
-                    console.log('Respuesta RAW de error:', responseText);
 
                     try {
                         const errorData = JSON.parse(responseText);
-                        console.error('Error subiendo archivo:', errorData);
 
                         // Mostrar errores específicos de validación
                         if (errorData.validation_errors) {
-                            console.error('Errores de validación específicos:');
+                            //console.error('Errores de validación específicos:');
                             Object.keys(errorData.validation_errors).forEach(field => {
-                                console.error(`  - ${field}: ${errorData.validation_errors[field]}`);
+                                //console.error(`  - ${field}: ${errorData.validation_errors[field]}`);
                             });
                         }
 
                         if (errorData.debug_info) {
-                            console.error('Debug info:', errorData.debug_info);
+                        //console.error('Debug info:', errorData.debug_info);
                         }
 
                         setUploadMessage(`Error al subir ${file.name}: ${errorData.error || 'Error desconocido'}`);
                     } catch (parseError) {
-                        console.error('Error parseando respuesta de error:', parseError);
-                        console.error('Respuesta de error no es JSON válido:', responseText);
+                        //console.error('Error parseando respuesta de error:', parseError);
+                        //console.error('Respuesta de error no es JSON válido:', responseText);
                         setUploadMessage(`Error al subir ${file.name}: Error del servidor (${response.status})`);
                     }
 
@@ -1505,7 +1559,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                 }
 
             } catch (error) {
-                console.error('Error en upload:', error);
+               // console.error('Error en upload:', error);
                 setUploadMessage(`Error de conexión con ${file.name}`);
                 setUploadProgress(0);
 
@@ -1536,7 +1590,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
         setSuccessCount(0);
         setTotalFiles(0);
 
-        console.log('Proceso de subida completado exitosamente');
+       // console.log('Proceso de subida completado exitosamente');
     };    // Estado para manejar monitoreos activos
     const [monitoreosActivos, setMonitoreosActivos] = useState<Set<string>>(new Set());
 
@@ -1556,7 +1610,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
     useEffect(() => {
         return () => {
             // Limpiar todos los monitores activos
-            console.log('Limpiando monitores activos al desmontar componente');
+          //  console.log('Limpiando monitores activos al desmontar componente');
             setMonitoreosActivos(new Set());
         };
     }, []);
@@ -1564,6 +1618,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
     // Verificar si el campus inicial tiene carreras médicas
     useEffect(() => {
         if (campusActual?.ID_Campus) {
+           // console.log('=== VERIFICANDO CARRERAS MÉDICAS PARA CAMPUS ===', campusActual.ID_Campus);
             verificarCampusMedico(campusActual.ID_Campus);
         }
     }, [campusActual]);
@@ -1571,32 +1626,70 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
     // Refrescar documentos cuando cambia el tipo de documento (solo una vez por cambio)
     useEffect(() => {
         if (campusActual) {
-            console.log(`🔄 Tipo de documento cambió a: ${tipoDocumento} - Refrescando estado...`);
-
-            // Mostrar indicador de carga al cambiar tipo
-            setCargandoDocumentosCompleto(true);
-            setDocumentosListosParaMostrar(false);
+            // Solo mostrar loader para cambios que no sean a médicos (para evitar salto de pantalla)
+            if (tipoDocumento !== 'medicos') {
+                setCargandoDocumentosCompleto(true);
+                setDocumentosListosParaMostrar(false);
+            }
 
             // Limpiar estado separado cuando cambia el tipo
             setDocumentosMedicosConEstado([]);
 
+            //  NO RESETEAR DOCUMENTO SELECCIONADO para evitar cambio de tamaño del panel
+            // setSelectedDocumento(null); // <-- Comentado para evitar salto de pantalla
+
             // Solo refrescar si es médicos, los legales ya se cargan desde el servidor inicial
             if (tipoDocumento === 'medicos') {
-                // Ejecutar inmediatamente sin delay
-                refrescarDocumentosDesdeServidor();
+               // console.log('Cambiando a médicos sin recargar');
+                // Ejecutar carga en background sin bloquear UI
+                setTimeout(() => {
+                    refrescarDocumentosDesdeServidor();
+                }, 50); // Tiny delay para que no se vea el loader
+                // Marcar como listo inmediatamente
+                setDocumentosListosParaMostrar(true);
+                setCargandoDocumentosCompleto(false);
             } else {
-                // Para legales, usar los documentos ya cargados y marcar como listos inmediatamente
+                // Para legales, usar los documentos ya cargados y seleccionar el primero
+                const documentosLegales = documentos.filter(doc =>
+                    !doc.concepto.toLowerCase().includes('cartas de intención de campo clínico')
+                );
+
+                if (documentosLegales.length > 0) {
+                   // console.log('🔄 Seleccionando primer documento legal:', documentosLegales[0].concepto);
+                    setSelectedDocumento(documentosLegales[0]);
+                }
+
                 setDocumentosListosParaMostrar(true);
                 setCargandoDocumentosCompleto(false);
             }
         }
     }, [tipoDocumento, campusActual]);
 
+    // NUEVO EFECTO: Sincronizar documento seleccionado cuando cambien los documentos médicos
+    useEffect(() => {
+        if (tipoDocumento === 'medicos' && documentosMedicosConEstado.length > 0) {
+           // console.log('=== SINCRONIZANDO DOCUMENTO SELECCIONADO CON MÉDICOS ===');
+
+            // Si no hay documento seleccionado o es de tipo incorrecto, seleccionar el primero
+            if (!selectedDocumento || !selectedDocumento.uniqueKey) {
+              //  console.log('🔄 Seleccionando primer documento médico actualizado:', documentosMedicosConEstado[0].concepto);
+                setSelectedDocumento(documentosMedicosConEstado[0]);
+            } else {
+                // Si hay documento seleccionado, verificar que esté actualizado
+                const docActualizado = documentosMedicosConEstado.find(d => d.uniqueKey === selectedDocumento.uniqueKey);
+                if (docActualizado && docActualizado !== selectedDocumento) {
+                   // console.log('🔄 Actualizando documento médico seleccionado con datos frescos:', docActualizado.concepto);
+                    setSelectedDocumento(docActualizado);
+                }
+            }
+        }
+    }, [documentosMedicosConEstado, tipoDocumento]);
+
     // Función para monitorear el análisis automático
     const monitorearAnalisis = async (archivoId: string, documentoKey: string, maxIntentos: number = 2) => {
         // Evitar múltiples monitores para el mismo archivo
         if (monitoreosActivos.has(archivoId)) {
-            console.log(`Ya existe un monitor activo para archivo ${archivoId}`);
+           // console.log(`Ya existe un monitor activo para archivo ${archivoId}`);
             return;
         }
 
@@ -1609,7 +1702,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
             intentos++;
 
             try {
-                console.log(`Verificando análisis para archivo ${archivoId} - Intento ${intentos}/${maxIntentos}`);
+               // console.log(`Verificando análisis para archivo ${archivoId} - Intento ${intentos}/${maxIntentos}`);
 
                 const response = await csrfFetch(`/documentos/analisis/estado?archivo_id=${archivoId}`, {
                     method: 'GET'
@@ -1618,7 +1711,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                 if (response.ok) {
                     const data = await response.json();
 
-                    console.log(`Estado del análisis:`, data);
+                   // console.log(`Estado del análisis:`, data);
 
                     // Actualizar estado del archivo
                     setDocumentos(prev => prev.map(doc => {
@@ -1709,14 +1802,14 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                     };
 
                                     // Debug: Verificar qué datos de fecha estamos recibiendo
-                                    console.log('📅 DEBUG - Datos de fecha del análisis:', {
+                                  /*   console.log('📅 DEBUG - Datos de fecha del análisis:', {
                                         archivo: archivo.nombre,
                                         analisis_completo: data.analisis,
                                         documento: data.analisis?.documento,
                                         fecha_expedicion: data.analisis?.documento?.fecha_expedicion,
                                         vigencia_documento: data.analisis?.documento?.vigencia_documento,
                                         dias_restantes: data.analisis?.documento?.dias_restantes_vigencia
-                                    });
+                                    }); */
                                 }
                                 return archivo;
                             });
@@ -1735,13 +1828,11 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                             // Determinar el nuevo estado (prioridad: rechazado > validado > subido)
                             if (archivoRechazado) {
                                 nuevoEstadoDoc = 'rechazado';
-                                console.log('Documento rechazado - cambiando estado inmediatamente');
                             } else if (archivoValidado) {
                                 nuevoEstadoDoc = 'vigente';
-                                console.log('Documento aprobado - cambiando a vigente');
                             } else if (archivosActualizados.some(a => a.estado === 'completado')) {
                                 nuevoEstadoDoc = 'subido';
-                                console.log('Documento subido');
+                                // console.log('Documento subido');
                             } return {
                                 ...doc,
                                 estado: nuevoEstadoDoc,
@@ -1787,16 +1878,16 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                                 };
 
                                                 // Debug: Verificar datos en la segunda ubicación
-                                                console.log('📅 DEBUG - Segunda ubicación:', {
+                                              /*   console.log('📅 DEBUG - Segunda ubicación:', {
                                                     archivo: archivo.nombre,
                                                     fecha_expedicion: data.analisis?.documento?.fecha_expedicion,
                                                     vigencia_documento: data.analisis?.documento?.vigencia_documento
-                                                });
+                                                }); */
                                             }
                                             return archivo;
                                         }) || []
                                     };
-                                    console.log('Actualizando selectedDocumento en tiempo real:', nuevoDocumento);
+                                   /*  console.log('Actualizando selectedDocumento en tiempo real:', nuevoDocumento); */
                                     return nuevoDocumento;
                                 }
                             }
@@ -1804,8 +1895,8 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                         });
                     }                    // Si el análisis terminó o se alcanzó el máximo de intentos, parar
                     if (data.tiene_analisis || intentos >= maxIntentos) {
-                        console.log(`Finalizando monitoreo para archivo ${archivoId}. Análisis completado: ${data.tiene_analisis}, Intentos: ${intentos}`);
-
+                      /*   console.log(`Finalizando monitoreo para archivo ${archivoId}. Análisis completado: ${data.tiene_analisis}, Intentos: ${intentos}`);
+ */
                         // Remover de monitores activos
                         setMonitoreosActivos(prev => {
                             const newSet = new Set(prev);
@@ -1815,12 +1906,12 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
 
                         // 🔄 ACTUALIZAR PANEL DESPUÉS DEL ANÁLISIS IA
                         if (data.tiene_analisis) {
-                            console.log('Análisis IA completado - Actualizando panel...');
+                        /*     console.log('Análisis IA completado - Actualizando panel...');
                             console.log('📅 FECHAS RECIBIDAS DEL ANÁLISIS:', {
                                 fecha_expedicion: data.analisis?.documento?.fecha_expedicion,
                                 vigencia_documento: data.analisis?.documento?.vigencia_documento,
                                 dias_restantes: data.analisis?.documento?.dias_restantes_vigencia
-                            });
+                            }); */
 
                             // Si el documento fue rechazado, forzar actualización inmediata
                             const documentoAfectado = documentos.find(d => getDocumentKey(d) === documentoKey);
@@ -1829,14 +1920,14 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                                 (data.analisis && data.analisis.validacion && !data.analisis.validacion.coincide);
 
                             if (esRechazado) {
-                                console.log('Documento rechazado - Actualizando interfaz inmediatamente');
+                           /*      console.log('Documento rechazado - Actualizando interfaz inmediatamente'); */
                                 // Forzar re-render inmediato para mostrar el estado rechazado
                                 setTimeout(() => {
                                     setDocumentos(prev => [...prev]); // Forzar re-render
                                 }, 100);
                             } else if (data.analisis?.validacion?.coincide) {
-                                // ✅ MOSTRAR NOTIFICACIÓN DE ÉXITO SOLO SI EL DOCUMENTO ES APROBADO
-                                console.log('Documento aprobado por IA - Mostrando notificación de éxito');
+                                //  MOSTRAR NOTIFICACIÓN DE ÉXITO SOLO SI EL DOCUMENTO ES APROBADO
+                             /*    console.log('Documento aprobado por IA - Mostrando notificación de éxito'); */
                                 const archivoAfectado = documentoAfectado?.archivos?.find(a => a.id === archivoId);
                                 setNotificationMessage(`${archivoAfectado?.nombre || 'Documento'} validado exitosamente`);
                                 setShowSuccessNotification(true);
@@ -1844,7 +1935,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
 
                                 // 🔄 FORZAR RE-RENDER PARA ACTUALIZAR FECHAS EN LA UI
                                 setTimeout(() => {
-                                    console.log('🔄 Forzando re-render para actualizar fechas en UI');
+                                   /*  console.log('🔄 Forzando re-render para actualizar fechas en UI'); */
                                     setSelectedDocumento(prev => prev ? {...prev} : prev);
                                 }, 500);
                             }
@@ -1853,8 +1944,8 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                         }
 
                         if (!data.tiene_analisis && intentos >= maxIntentos) {
-                            console.warn(`Timeout en análisis de archivo ${archivoId} después de ${maxIntentos} intentos`);
-
+                           /*  console.warn(`Timeout en análisis de archivo ${archivoId} después de ${maxIntentos} intentos`);
+ */
                             // Marcar como error por timeout
                             setDocumentos(prev => prev.map(doc => {
                                 if (getDocumentKey(doc) === documentoKey) {
@@ -1883,8 +1974,8 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                     // Continuar monitoreando si no terminó
                     setTimeout(checkAnalisis, 2000); // Verificar cada 2 segundos (más rápido)
                 } else {
-                    console.error(`Error en petición de estado: ${response.status}`);
-
+                  /*   console.error(`Error en petición de estado: ${response.status}`);
+ */
                     // En caso de error, reintentar hasta el máximo
                     if (intentos < maxIntentos) {
                         setTimeout(checkAnalisis, 2000); // Verificar cada 2 segundos
@@ -1898,14 +1989,14 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                     }
                 }
             } catch (error) {
-                console.error('Error monitoreando análisis:', error);
-
+             /*    console.error('Error monitoreando análisis:', error);
+ */
                 // En caso de error, reintentar hasta el máximo
                 if (intentos < maxIntentos) {
                     setTimeout(checkAnalisis, 3000); // Esperar 3 segundos en caso de error
                 } else {
-                    console.error(`Error persistente en monitoreo de archivo ${archivoId}, cancelando.`);
-
+                    /* console.error(`Error persistente en monitoreo de archivo ${archivoId}, cancelando.`);
+ */
                     // Remover de monitores activos
                     setMonitoreosActivos(prev => {
                         const newSet = new Set(prev);
@@ -1922,7 +2013,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
 
     // Función para detener todos los monitores
     const detenerTodosLosMonitores = () => {
-        console.log('Deteniendo todos los monitores manualmente');
+       /*  console.log('Deteniendo todos los monitores manualmente'); */
         setMonitoreosActivos(new Set());
 
         // Actualizar todos los archivos que estén "analizando" a "error"
@@ -2002,7 +2093,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
     // Función para normalizar el estado del documento
     const normalizeEstado = (estado: string): string => {
         const normalizado = estado.toLowerCase();
-        console.log('🔄 Estado original:', estado, '-> normalizado:', normalizado);
+        //console.log(' Estado original:', estado, '-> normalizado:', normalizado);
         return normalizado;
     };
 
@@ -2014,7 +2105,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
 
         // Si ya está marcado como caducado en la BD
         if (estadoNormalizado === 'caducado') {
-            console.log('✅ Documento marcado como caducado en BD:', documento.concepto);
+           // console.log('✅ Documento marcado como caducado en BD:', documento.concepto);
             return true;
         }
 
@@ -2070,7 +2161,7 @@ const getEstadoTextoDinamico = (documento: DocumentoRequerido): string => {
 const getEstadoRealDocumento = (documento: DocumentoRequerido): string => {
     // Buscar archivos que tengan metadata con estado de BD
     const archivos = getArchivosSeguro(documento);
-    console.log(`🔍 Debug ${documento.concepto}:`, {
+   /*  console.log(` Debug ${documento.concepto}:`, {
         total_archivos: archivos.length,
         archivos: archivos.map(a => ({
             id: a.id,
@@ -2078,7 +2169,7 @@ const getEstadoRealDocumento = (documento: DocumentoRequerido): string => {
             metadata: a.metadata,
             tiene_estado_bd: !!a.metadata?.estado_bd
         }))
-    });
+    }); */
 
     const archivosConEstadoBD = archivos.filter(archivo =>
         archivo.metadata?.estado_bd
@@ -2090,12 +2181,12 @@ const getEstadoRealDocumento = (documento: DocumentoRequerido): string => {
             new Date(b.fechaSubida).getTime() - new Date(a.fechaSubida).getTime()
         )[0];
 
-        console.log(`🔧 Usando estado de BD para ${documento.concepto}:`, archivoMasReciente.metadata?.estado_bd);
+       // console.log(`Usando estado de BD para ${documento.concepto}:`, archivoMasReciente.metadata?.estado_bd);
         return archivoMasReciente.metadata?.estado_bd || documento.estado;
     }
 
     // Fallback: usar estado del documento JSON
-    console.log(`📄 Usando estado JSON para ${documento.concepto}:`, documento.estado);
+    // console.log(` Usando estado JSON para ${documento.concepto}:`, documento.estado);
     return documento.estado;
 };    // Filtrar documentos
     const documentosFiltrados = documentos.filter(doc => {
@@ -2129,7 +2220,27 @@ const getEstadoRealDocumento = (documento: DocumentoRequerido): string => {
             // Documentos médicos: usar estado separado si está disponible
             if (documentosMedicosConEstado.length > 0) {
                 console.log('🔄 Usando documentos médicos con estado actualizado:', documentosMedicosConEstado.length);
-                return documentosMedicosConEstado;
+
+                // ✅ APLICAR FILTROS TAMBIÉN A DOCUMENTOS MÉDICOS DEL SP
+                return documentosMedicosConEstado.filter(doc => {
+                    const coincideBusqueda = doc.concepto.toLowerCase().includes(busqueda.toLowerCase()) ||
+                        doc.descripcion.toLowerCase().includes(busqueda.toLowerCase());
+
+                    // Lógica de filtrado por estado para documentos médicos
+                    let coincidefiltro = false;
+                    const estadoNormalizado = normalizeEstado(doc.estado);
+
+                    if (filtroEstado === 'todos') {
+                        coincidefiltro = true;
+                    } else if (filtroEstado === 'subido') {
+                        // En "Subidos" incluir 'subido', 'vigente' y 'caducado' (documentos que ya se subieron)
+                        coincidefiltro = estadoNormalizado === 'subido' || estadoNormalizado === 'vigente' || estadoNormalizado === 'caducado' || isDocumentoCaducado(doc);
+                    } else {
+                        coincidefiltro = estadoNormalizado === filtroEstado || (filtroEstado === 'caducado' && isDocumentoCaducado(doc));
+                    }
+
+                    return coincideBusqueda && coincidefiltro;
+                });
             }
 
             // Generar documentos médicos iniciales si no hay estado separado
@@ -2163,18 +2274,18 @@ const getEstadoRealDocumento = (documento: DocumentoRequerido): string => {
                         carreraNombre: carrera.Descripcion, // Agregar nombre de carrera
                     };
 
-                    console.log(`📄 Documento generado para ${carrera.Descripcion}:`, {
+              /*       console.log(` Documento generado para ${carrera.Descripcion}:`, {
                         uniqueKey: documentoGenerado.uniqueKey,
                         carreraId: documentoGenerado.carreraId,
                         carreraIdType: typeof documentoGenerado.carreraId,
                         documentoOriginalId: documentoGenerado.documentoOriginalId
-                    });
+                    }); */
 
                     documentosPorCarrera.push(documentoGenerado);
                 });
             });
 
-            console.log(`📚 Total documentos médicos generados: ${documentosPorCarrera.length}`);
+          //  console.log(`📚 Total documentos médicos generados: ${documentosPorCarrera.length}`);
             return documentosPorCarrera;
         }
     })();
@@ -2420,7 +2531,6 @@ const getEstadoRealDocumento = (documento: DocumentoRequerido): string => {
                                         Suba el documento correcto o contacte al administrador si considera que es un error.
                                     </p>
                                 </div>
-
                                 {/* Botones simples */}
                                 <div className="flex gap-3 pt-4">
                                     <Button
@@ -3203,7 +3313,7 @@ const getEstadoRealDocumento = (documento: DocumentoRequerido): string => {
                                                             id={`file-input-${getDocumentKey(selectedDocumento)}`}
                                                             className="hidden"
                                                             multiple
-                                                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                                            accept=".pdf"
                                                             onChange={(e) => handleFileInputChange(e, getDocumentKey(selectedDocumento))}
                                                         />
                                                         <Button
@@ -3217,7 +3327,7 @@ const getEstadoRealDocumento = (documento: DocumentoRequerido): string => {
                                                             Seleccionar Archivos
                                                         </Button>
                                                         <p className="text-xs text-muted-foreground dark:text-gray-400 mt-3">
-                                                            Formatos: PDF, DOC, DOCX, JPG, PNG (máx. 10MB)
+                                                            Formatos: PDF
                                                         </p>
                                                     </div>
                                                 ) : (
