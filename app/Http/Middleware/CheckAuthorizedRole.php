@@ -46,6 +46,24 @@ class CheckAuthorizedRole
             return redirect()->route('login')->with('error', 'Tu sesión ha expirado.');
         }
 
+        // VALIDACIONES ESPECIALES DE USUARIOS Y ROLES
+        $rolesUsuario = $user->roles->pluck('ID_Rol')->toArray();
+        $usuarioNormalizado = strtolower(trim($user->Usuario));
+
+        // VALIDACIÓN ESPECIAL: Si tiene rol 16 (Supervisor), debe ser usuario "rector"
+        $tieneRol16 = in_array('16', $rolesUsuario);
+        if ($tieneRol16 && $usuarioNormalizado !== 'rector') {
+            Auth::logout();
+            return redirect()->route('login')->with('error', 'Acceso denegado para este usuario.');
+        }
+
+        // VALIDACIÓN ESPECIAL: Si tiene rol 20, debe ser usuario "planeacion_desarrollo"
+        $tieneRol20 = in_array('20', $rolesUsuario);
+        if ($tieneRol20 && $usuarioNormalizado !== 'planeacion_desarrollo') {
+            Auth::logout();
+            return redirect()->route('login')->with('error', 'Acceso denegado para este usuario.');
+        }
+
         return $next($request);
     }
 }

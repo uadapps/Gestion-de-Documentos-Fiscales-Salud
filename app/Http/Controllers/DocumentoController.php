@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
+use PDO;
 
 class DocumentoController extends Controller
 {
@@ -538,7 +539,7 @@ class DocumentoController extends Controller
         try {
             $campusId = $request->input('campus_id');
 
-            Log::info('=== CONSULTA OPTIMIZADA DOCUMENTOS MÉDICOS ===', [
+            Log::info('=== CONSULTA OPTIMIZADA DOCUMENTOS MÉDICOS USANDO SP ===', [
                 'campus_id' => $campusId
             ]);
 
@@ -546,47 +547,331 @@ class DocumentoController extends Controller
                 return response()->json(['error' => 'Campus ID requerido'], 400);
             }
 
-            // 1. Obtener todas las carreras médicas del campus
-            $carrerasMedicas = $this->obtenerCarrerasMedicasCampus($campusId);
+            // Usar el stored procedure que ya tiene la lógica correcta
+            $resultados = DB::select('EXEC sug_reporte_detalle_por_campus ?', [$campusId]);
 
-            if (empty($carrerasMedicas)) {
-                return response()->json([
-                    'success' => true,
-                    'carreras' => [],
-                    'documentos_por_carrera' => []
-                ]);
-            }
+            // El SP retorna 4 conjuntos de resultados. Necesitamos procesar cada uno.
+            // Simulamos esto ejecutando y capturando resultados manualmente
 
-            // 2. Obtener IDs de carreras
-            $idsCarreras = collect($carrerasMedicas)->pluck('ID_Especialidad')->toArray();
-
-            Log::info('Carreras médicas encontradas:', [
-                'total' => count($carrerasMedicas),
-                'ids' => $idsCarreras
+            Log::info('Ejecutando SP sug_reporte_detalle_por_campus', [
+                'campus_id' => $campusId,
+                'total_resultados' => count($resultados)
             ]);
 
-            // 3. Consulta optimizada: obtener todos los documentos médicos con sus estados en una sola consulta
-            $documentosMedicos = [];
+            // Para obtener múltiples result sets, usamos una estrategia diferente
+            $pdo = DB::getPdo();
+            $stmt = $pdo->prepare('EXEC sug_reporte_detalle_por_campus ?');
+            $stmt->execute([$campusId]);
 
-            foreach ($idsCarreras as $carreraId) {
-                $documentosCarrera = $this->getDocumentosRequeridos($campusId, $carreraId);
-                $documentosMedicos[$carreraId] = $documentosCarrera;
+            // Primer result set: DETALLE de todos los documentos
+            $detalleDocumentos = $stmt->fetchAll(PDO::FETCH_OBJ);
+            $stmt->nextRowset();
+
+            // Segundo result set: RESUMEN POR TIPO
+            $resumenPorTipo = $stmt->fetchAll(PDO::FETCH_OBJ);
+            $stmt->nextRowset();
+
+            // Tercer result set: TOTAL GENERAL
+            $totalGeneral = $stmt->fetchAll(PDO::FETCH_OBJ);
+            $stmt->nextRowset();
+
+            // Cuarto result set: RESUMEN POR CARRERA (este es el que necesitamos)
+            $resumenPorCarrera = $stmt->fetchAll(PDO::FETCH_OBJ);
+
+            Log::info('Resultados del SP obtenidos:', [
+                'detalle_count' => count($detalleDocumentos),
+                'resumen_tipo_count' => count($resumenPorTipo),
+                'total_general_count' => count($totalGeneral),
+                'resumen_carrera_count' => count($resumenPorCarrera)
+            ]);
+
+            // Procesar el resumen por carrera para obtener solo documentos médicos
+            $documentosMedicosPorCarrera = [];
+            $carrerasMedicas = [];
+
+            foreach ($resumenPorCarrera as $carrera) {
+                // Solo incluir carreras médicas (que tienen nombre y no están vacías)
+                if (!empty($carrera->carrera_nombre) && trim($carrera->carrera_nombre) !== '') {
+                    $carreraNombre = trim($carrera->carrera_nombre);
+
+                    // Agregar a la lista de carreras médicas
+                    if (!in_array($carreraNombre, $carrerasMedicas)) {
+                        $carrerasMedicas[] = $carreraNombre;
+                    }
+
+                    // Crear registro agrupado por carrera como en el SP
+                    $documentosMedicosPorCarrera[] = [
+                        'campus_id' => (int)$carrera->campus_id,
+                        'carrera_nombre' => $carreraNombre, // Campo clave del SP
+                        'tipo_documento' => 'MEDICO',
+
+                        // Estadísticas exactas del SP
+                        'Total' => (int)$carrera->Total,
+                        'Vigentes' => (int)$carrera->Vigentes,
+                        'Pendientes' => (int)$carrera->Pendientes,
+                        'Caducados' => (int)$carrera->Caducados,
+                        'Rechazados' => (int)$carrera->Rechazados,
+
+                        // Información adicional
+                        'porcentaje_cumplimiento' => $carrera->Total > 0
+                            ? round(($carrera->Vigentes / $carrera->Total) * 100, 2)
+                            : 0
+                    ];
+
+                    Log::info("Carrera médica procesada: $carreraNombre", [
+                        'Total' => $carrera->Total,
+                        'Vigentes' => $carrera->Vigentes,
+                        'Pendientes' => $carrera->Pendientes,
+                        'Caducados' => $carrera->Caducados,
+                        'Rechazados' => $carrera->Rechazados
+                    ]);
+                }
             }
 
-            Log::info('Documentos médicos obtenidos:', [
-                'carreras_procesadas' => count($documentosMedicos),
-                'total_documentos' => array_sum(array_map('count', $documentosMedicos))
+            // Obtener detalles de documentos médicos agrupados por carrera
+            $documentosDetallePorCarrera = [];
+            foreach ($detalleDocumentos as $detalle) {
+                if ($detalle->tipo_documento === 'MEDICINA' && !empty($detalle->carrera_nombre)) {
+                    $carreraNombre = trim($detalle->carrera_nombre);
+
+                    if (!isset($documentosDetallePorCarrera[$carreraNombre])) {
+                        $documentosDetallePorCarrera[$carreraNombre] = [];
+                    }
+
+                    // Solo agregar si no existe ya este documento para esta carrera
+                    $documentoExiste = false;
+                    foreach ($documentosDetallePorCarrera[$carreraNombre] as $docExistente) {
+                        if ($docExistente['id'] === (string)$detalle->documento_id) {
+                            $documentoExiste = true;
+                            break;
+                        }
+                    }
+
+                    if (!$documentoExiste) {
+                        $fechaLimite = null;
+                        if ($detalle->vigencia_date) {
+                            $fechaLimite = date('Y-m-d', strtotime($detalle->vigencia_date));
+                        }
+
+                        $documentosDetallePorCarrera[$carreraNombre][] = [
+                            'id' => (string)$detalle->documento_id,
+                            'concepto' => $detalle->documento_catalogo,
+                            'descripcion' => $detalle->nombre_documento ?? $detalle->documento_catalogo,
+                            'fechaLimite' => $fechaLimite,
+                            'estado' => strtolower($detalle->estado_final),
+                            'obligatorio' => true,
+                            'categoria' => 'medico',
+                            'es_medico' => true,
+                            'archivos' => []
+                        ];
+                    }
+                }
+            }
+
+            // Agregar detalles a cada carrera
+            foreach ($documentosMedicosPorCarrera as &$carrera) {
+                $carreraNombre = $carrera['carrera_nombre'];
+                $carrera['documentos_detalle'] = $documentosDetallePorCarrera[$carreraNombre] ?? [];
+            }
+
+            Log::info('Documentos médicos agrupados usando SP:', [
+                'carreras_con_documentos' => count($documentosMedicosPorCarrera),
+                'carreras_medicas' => $carrerasMedicas
             ]);
 
             return response()->json([
                 'success' => true,
                 'campus_id' => $campusId,
-                'carreras' => $carrerasMedicas,
-                'documentos_por_carrera' => $documentosMedicos
+                'carreras' => array_map(function($nombre) {
+                    return ['Descripcion' => $nombre];
+                }, $carrerasMedicas),
+                'documentos_agrupados_por_carrera' => $documentosMedicosPorCarrera,
+                'estructura' => 'usando_stored_procedure_exacto',
+                'resumen_por_tipo' => $resumenPorTipo,
+                'total_general' => $totalGeneral
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error obteniendo documentos médicos optimizado', [
+            Log::error('Error obteniendo documentos médicos con SP', [
+                'error' => $e->getMessage(),
+                'campus_id' => $request->input('campus_id'),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json(['error' => 'Error interno del servidor'], 500);
+        }
+    }
+
+    /**
+     * Método que usa directamente el stored procedure sug_reporte_detalle_por_campus
+     * Este SP ya tiene toda la lógica correcta para agrupar por carrera normalizada
+     */
+    public function getDocumentosMedicosConSP(Request $request)
+    {
+        try {
+            $campusId = $request->input('campus_id');
+
+            Log::info('=== USANDO SP sug_reporte_detalle_por_campus DIRECTAMENTE ===', [
+                'campus_id' => $campusId
+            ]);
+
+            if (!$campusId) {
+                return response()->json(['error' => 'Campus ID requerido'], 400);
+            }
+
+            // Ejecutar el stored procedure
+            $pdo = DB::getPdo();
+            $stmt = $pdo->prepare('EXEC sug_reporte_detalle_por_campus ?');
+            $stmt->execute([$campusId]);
+
+            // El SP retorna 4 result sets:
+            // 1. DETALLE de todos los documentos
+            $detalleDocumentos = $stmt->fetchAll(PDO::FETCH_OBJ);
+            $stmt->nextRowset();
+
+            // 2. RESUMEN POR TIPO
+            $resumenPorTipo = $stmt->fetchAll(PDO::FETCH_OBJ);
+            $stmt->nextRowset();
+
+            // 3. TOTAL GENERAL
+            $totalGeneral = $stmt->fetchAll(PDO::FETCH_OBJ);
+            $stmt->nextRowset();
+
+            // 4. RESUMEN POR CARRERA (el que más nos interesa)
+            $resumenPorCarrera = $stmt->fetchAll(PDO::FETCH_OBJ);
+
+            Log::info('SP ejecutado exitosamente:', [
+                'detalle_documentos' => count($detalleDocumentos),
+                'resumen_por_tipo' => count($resumenPorTipo),
+                'total_general' => count($totalGeneral),
+                'resumen_por_carrera' => count($resumenPorCarrera)
+            ]);
+
+            // Filtrar solo documentos médicos del resumen por carrera
+            $documentosMedicosPorCarrera = [];
+            foreach ($resumenPorCarrera as $carrera) {
+                // Solo incluir carreras médicas (que tienen nombre no vacío)
+                if (!empty($carrera->carrera_nombre) && trim($carrera->carrera_nombre) !== '') {
+                    $documentosMedicosPorCarrera[] = [
+                        'campus_id' => (int)$carrera->campus_id,
+                        'carrera_nombre' => trim($carrera->carrera_nombre),
+                        'tipo_documento' => 'MEDICO',
+                        'Total' => (int)$carrera->Total,
+                        'Vigentes' => (int)$carrera->Vigentes,
+                        'Pendientes' => (int)$carrera->Pendientes,
+                        'Caducados' => (int)$carrera->Caducados,
+                        'Rechazados' => (int)$carrera->Rechazados,
+                        'porcentaje_cumplimiento' => $carrera->Total > 0
+                            ? round(($carrera->Vigentes / $carrera->Total) * 100, 2)
+                            : 0
+                    ];
+                }
+            }
+
+            // Obtener documentos médicos del detalle
+            $documentosMedicosDetalle = [];
+            foreach ($detalleDocumentos as $detalle) {
+                if ($detalle->tipo_documento === 'MEDICINA' && !empty($detalle->carrera_nombre)) {
+                    $carreraNombre = trim($detalle->carrera_nombre);
+
+                    if (!isset($documentosMedicosDetalle[$carreraNombre])) {
+                        $documentosMedicosDetalle[$carreraNombre] = [];
+                    }
+
+                    // Evitar duplicados basándose en documento_id
+                    $existe = false;
+                    foreach ($documentosMedicosDetalle[$carreraNombre] as $existente) {
+                        if ($existente['documento_id'] === $detalle->documento_id) {
+                            $existe = true;
+                            break;
+                        }
+                    }
+
+                    if (!$existe) {
+                        $documentosMedicosDetalle[$carreraNombre][] = [
+                            'documento_id' => $detalle->documento_id,
+                            'carrera_id' => $detalle->carrera_id ?? null, // ✅ Incluir carrera_id del SP
+                            'documento_catalogo' => $detalle->documento_catalogo,
+                            'nombre_documento' => $detalle->nombre_documento,
+                            'folio_documento' => $detalle->folio_documento,
+                            'fecha_expedicion' => $detalle->fecha_expedicion,
+                            'vigencia_documento' => $detalle->vigencia_documento,
+                            'dias_restantes_vigencia' => $detalle->dias_restantes_vigencia ?? null,
+                            'estado_final' => $detalle->estado_final,
+                            'archivo_id' => $detalle->archivo_id,
+                            'subido_por_nombre' => $detalle->subido_por_nombre,
+                            'subido_en' => $detalle->subido_en
+                        ];
+                    }
+                }
+            }
+
+            // Extraer carreras médicas únicas de los datos del DETALLE del SP (que SÍ tiene carrera_id)
+            $carrerasMedicas = [];
+            $carrerasVistas = [];
+
+            // Primero, extraer carrera_id del detalle de documentos
+            $carreraIdMap = []; // Mapear nombre => ID
+            foreach ($detalleDocumentos as $detalle) {
+                if ($detalle->tipo_documento === 'MEDICINA' && !empty($detalle->carrera_nombre) && !empty($detalle->carrera_id)) {
+                    $carreraNombre = trim($detalle->carrera_nombre);
+                    $carreraId = trim($detalle->carrera_id);
+
+                    // Guardar el primer carrera_id encontrado para cada nombre
+                    if (!isset($carreraIdMap[$carreraNombre])) {
+                        $carreraIdMap[$carreraNombre] = $carreraId;
+                    }
+                }
+            }
+
+            // Ahora construir el array de carreras médicas con el ID correcto
+            foreach ($documentosMedicosPorCarrera as $carreraData) {
+                $carreraNombre = $carreraData['carrera_nombre'];
+                if (!in_array($carreraNombre, $carrerasVistas)) {
+                    $carrerasVistas[] = $carreraNombre;
+
+                    // Usar el carrera_id del mapa (del SP) en lugar de generar uno secuencial
+                    $carreraId = $carreraIdMap[$carreraNombre] ?? null;
+
+                    if ($carreraId) {
+                        $carrerasMedicas[] = (object)[
+                            'ID_Especialidad' => $carreraId, // ✅ ID real del SP
+                            'Descripcion' => $carreraNombre
+                        ];
+                    } else {
+                        Log::warning("No se encontró carrera_id para carrera: $carreraNombre");
+                    }
+                }
+            }
+
+            Log::info('Carreras médicas extraídas del SP:', [
+                'cantidad' => count($carrerasMedicas),
+                'carreras' => array_map(function($c) { return $c->Descripcion; }, $carrerasMedicas)
+            ]);
+
+            // Log detallado para debug
+            Log::info('=== DATOS COMPLETOS DEL SP PARA DEBUG ===', [
+                'campus_id' => $campusId,
+                'carreras_medicas_total' => count($carrerasMedicas),
+                'documentos_agrupados_total' => count($documentosMedicosPorCarrera),
+                'documentos_detalle_carreras' => array_keys($documentosMedicosDetalle),
+                'documentos_agrupados_detalle' => $documentosMedicosPorCarrera,
+                'documentos_detalle_completo' => $documentosMedicosDetalle
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'campus_id' => $campusId,
+                'carreras_medicas' => $carrerasMedicas, // Frontend espera este nombre
+                'documentos_agrupados' => $documentosMedicosPorCarrera, // Frontend espera este nombre
+                'documentos_detalle' => $documentosMedicosDetalle,
+                'resumen_por_tipo' => $resumenPorTipo,
+                'total_general' => $totalGeneral,
+                'estructura' => 'stored_procedure_completo',
+                'descripcion' => 'Datos exactos del SP con agrupación por carrera normalizada'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error ejecutando SP sug_reporte_detalle_por_campus', [
                 'error' => $e->getMessage(),
                 'campus_id' => $request->input('campus_id'),
                 'trace' => $e->getTraceAsString()
@@ -1263,8 +1548,8 @@ class DocumentoController extends Controller
                 'campus_ids' => $campusIds
             ]);
 
-            if ($userRoles['isRole16']) {
-                Log::info('Usuario es supervisor, obteniendo estadísticas globales');
+            if ($userRoles['isRole16or20']) {
+                Log::info('Usuario es supervisor (rol 16 o 20), obteniendo estadísticas globales');
                 return $this->getEstadisticasSupervisor();
             } else if ($userRoles['isRole13or14']) {
                 Log::info('Usuario es director, obteniendo estadísticas de campus');
@@ -1311,6 +1596,8 @@ class DocumentoController extends Controller
                 return [
                     'isRole13or14' => false,
                     'isRole16' => false,
+                    'isRole20' => false,
+                    'isRole16or20' => false,
                     'roles' => []
                 ];
             }
@@ -1326,6 +1613,8 @@ class DocumentoController extends Controller
             return [
                 'isRole13or14' => in_array(13, $roleIds) || in_array(14, $roleIds),
                 'isRole16' => in_array(16, $roleIds),
+                'isRole20' => in_array(20, $roleIds),
+                'isRole16or20' => in_array(16, $roleIds) || in_array(20, $roleIds),
                 'roles' => $roleIds
             ];
 
@@ -1338,6 +1627,8 @@ class DocumentoController extends Controller
             return [
                 'isRole13or14' => false,
                 'isRole16' => false,
+                'isRole20' => false,
+                'isRole16or20' => false,
                 'roles' => []
             ];
         }
@@ -1625,78 +1916,54 @@ class DocumentoController extends Controller
             $user = Auth::user();
             $idEmpleado = $user->ID_Empleado ?? $user->ID_Usuario;
 
-            // Usar stored procedure que trae datos separados por campus
-            try {
-                $estadisticasOptimizadas = $this->calcularEstadisticasConSP($idEmpleado);
+            Log::info('Campus IDs asignados al director', [
+                'id_empleado' => $idEmpleado,
+                'campus_ids' => $campusIds,
+                'total_campus' => count($campusIds)
+            ]);
 
-                Log::info('Estadísticas obtenidas con stored procedure', [
-                    'user_id' => $idEmpleado,
-                    'estadisticas' => $estadisticasOptimizadas
-                ]);
+            // ✨ USAR NUEVO MÉTODO QUE SOLO USA EL SP
+            $estadisticasSP = $this->obtenerEstadisticasDesdeStoredProcedure($idEmpleado, $campusIds);
 
-                // Generar estadísticas por campus para gráficas
-                $estadisticasPorCampus = $this->generarEstadisticasPorCampus($idEmpleado, $campusIds);
+            Log::critical('🔴🔴🔴 VERIFICANDO DATOS DEL SP ANTES DE RETORNAR', [
+                'estadisticasSP_keys' => array_keys($estadisticasSP),
+                'total' => $estadisticasSP['total'],
+                'fiscales' => $estadisticasSP['fiscales'],
+                'medicos' => $estadisticasSP['medicos'],
+                'campus_count' => count($estadisticasSP['por_campus'])
+            ]);
 
-                // Obtener actividad reciente
-                $actividadReciente = $this->obtenerActividadReciente($campusIds);
+            // Obtener actividad reciente
+            $actividadReciente = $this->obtenerActividadReciente($campusIds);
 
-                // Obtener documentos próximos a vencer o vencidos
-                $documentosVencidos = $this->obtenerDocumentosVencidos($campusIds);
+            // Obtener documentos próximos a vencer o vencidos
+            $documentosVencidos = $this->obtenerDocumentosVencidos($campusIds);
 
-                return response()->json([
-                    'tipo_usuario' => 'campus',
-                    'estadisticas' => $estadisticasOptimizadas['total'],
-                    'estadisticas_fiscales' => $estadisticasOptimizadas['fiscales'],
-                    'estadisticas_medicos' => $estadisticasOptimizadas['medicos'],
-                    'estadisticas_por_campus' => $estadisticasPorCampus,
-                    'documentos_por_tipo' => [
-                        [
-                            'tipo_documento' => 'fiscales',
-                            'cantidad' => $estadisticasOptimizadas['fiscales']->total_documentos,
-                            'aprobados' => $estadisticasOptimizadas['fiscales']->aprobados
-                        ],
-                        [
-                            'tipo_documento' => 'medicos',
-                            'cantidad' => $estadisticasOptimizadas['medicos']->total_documentos,
-                            'aprobados' => $estadisticasOptimizadas['medicos']->aprobados
-                        ]
+            return response()->json([
+                'tipo_usuario' => 'campus',
+                'estadisticas' => $estadisticasSP['total'],
+                'estadisticas_fiscales' => $estadisticasSP['fiscales'],
+                'estadisticas_medicos' => $estadisticasSP['medicos'],
+                'estadisticas_por_campus' => $estadisticasSP['por_campus'],
+                'documentos_por_tipo' => [
+                    [
+                        'tipo_documento' => 'fiscales',
+                        'cantidad' => $estadisticasSP['fiscales']->total_documentos,
+                        'aprobados' => $estadisticasSP['fiscales']->aprobados
                     ],
-                    'actividad_reciente' => $actividadReciente,
-                    'documentos_vencidos' => $documentosVencidos,
-                    'metodo_usado' => 'stored_procedure'
-                ]);
-
-            } catch (\Exception $spError) {
-                Log::warning('Error con stored procedure, usando método fallback', [
-                    'error' => $spError->getMessage(),
-                    'user_id' => $idEmpleado
-                ]);
-
-                // Fallback al método anterior
-                $estadisticasOptimizadas = $this->calcularEstadisticasInteligentes($campusIds);
-
-                return response()->json([
-                    'tipo_usuario' => 'campus',
-                    'estadisticas' => $estadisticasOptimizadas['total'],
-                    'estadisticas_fiscales' => $estadisticasOptimizadas['fiscales'],
-                    'estadisticas_medicos' => $estadisticasOptimizadas['medicos'],
-                    'documentos_por_tipo' => [
-                        [
-                            'tipo_documento' => 'fiscales',
-                            'cantidad' => $estadisticasOptimizadas['fiscales']->total_documentos,
-                            'aprobados' => $estadisticasOptimizadas['fiscales']->aprobados
-                        ],
-                        [
-                            'tipo_documento' => 'medicos',
-                            'cantidad' => $estadisticasOptimizadas['medicos']->total_documentos,
-                            'aprobados' => $estadisticasOptimizadas['medicos']->aprobados
-                        ]
-                    ],
-                    'actividad_reciente' => [],
-                    'documentos_vencidos' => [],
-                    'metodo_usado' => 'fallback'
-                ]);
-            }            // Primero, verificar qué estados existen en la tabla
+                    [
+                        'tipo_documento' => 'medicos',
+                        'cantidad' => $estadisticasSP['medicos']->total_documentos,
+                        'aprobados' => $estadisticasSP['medicos']->aprobados
+                    ]
+                ],
+                'actividad_reciente' => $actividadReciente,
+                'documentos_vencidos' => $documentosVencidos,
+                'metodo_usado' => 'stored_procedure_nuevo',
+                '_debug_timestamp' => now()->toDateTimeString()
+            ])->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+              ->header('Pragma', 'no-cache')
+              ->header('Expires', '0');            // Primero, verificar qué estados existen en la tabla
             $estadosExistentes = DB::table('sug_documentos_informacion as sdi')
                 ->whereIn('sdi.campus_id', $campusIds)
                 ->select('sdi.estado', DB::raw('COUNT(*) as cantidad'))
@@ -2510,17 +2777,28 @@ class DocumentoController extends Controller
     private function calcularEstadisticasConSP($idEmpleado)
     {
         try {
-            Log::info('Ejecutando stored procedure sug_reporte_estatus_documentos con parámetro @Todos', [
+            Log::info('Ejecutando stored procedure sug_reporte_estatus_documentos con PDO para capturar múltiples result sets', [
                 'id_empleado' => $idEmpleado
             ]);
 
-            // Ejecutar el stored procedure con parámetro @Todos = 0 (solo campus del director)
-            $resultados = DB::select('EXEC sug_reporte_estatus_documentos ?, ?', [$idEmpleado, 0]);
+            // Usar PDO para capturar múltiples result sets del SP
+            $pdo = DB::connection()->getPdo();
+            $stmt = $pdo->prepare('EXEC sug_reporte_estatus_documentos ?, ?');
+            $stmt->execute([$idEmpleado, 0]); // @Todos = 0 (solo campus del director)
 
-            Log::info('Resultados raw del stored procedure', [
+            // Result Set 1: Desglose por campus (no lo necesitamos aquí, pero debemos consumirlo)
+            $resultadosPorCampus = $stmt->fetchAll(\PDO::FETCH_OBJ);
+
+            // Result Set 2: Totales agregados por tipo (FISCAL/MEDICINA) - ESTE ES EL QUE NECESITAMOS
+            $stmt->nextRowset();
+            $totalesPorTipo = $stmt->fetchAll(\PDO::FETCH_OBJ);
+
+            Log::info('Resultados de ambos result sets del stored procedure', [
                 'id_empleado' => $idEmpleado,
-                'resultados_count' => count($resultados),
-                'resultados_raw' => $resultados
+                'result_set_1_count' => count($resultadosPorCampus),
+                'result_set_2_count' => count($totalesPorTipo),
+                'result_set_1_data' => $resultadosPorCampus,
+                'result_set_2_data' => $totalesPorTipo
             ]);
 
             // Inicializar contadores
@@ -2542,20 +2820,43 @@ class DocumentoController extends Controller
                 'rechazados' => 0
             ];
 
-            // Procesar resultados del SP
-            foreach ($resultados as $fila) {
-                if ($fila->tipo_documento === 'FISCAL') {
-                    $estadisticasFiscales['total_documentos'] += $fila->Total;
-                    $estadisticasFiscales['pendientes'] += $fila->Pendientes;
-                    $estadisticasFiscales['aprobados'] += $fila->Vigentes; // Vigente = Aprobado
-                    $estadisticasFiscales['caducados'] += $fila->Caducados ?? 0; // Campo de caducados
-                    $estadisticasFiscales['rechazados'] += $fila->Rechazados;
-                } else {
-                    $estadisticasMedicos['total_documentos'] += $fila->Total;
-                    $estadisticasMedicos['pendientes'] += $fila->Pendientes;
-                    $estadisticasMedicos['aprobados'] += $fila->Vigentes; // Vigente = Aprobado
-                    $estadisticasMedicos['caducados'] += $fila->Caducados ?? 0; // Campo de caducados
-                    $estadisticasMedicos['rechazados'] += $fila->Rechazados;
+            // PRIORIDAD: Usar totales del Result Set 2 (más precisos y optimizados)
+            if (!empty($totalesPorTipo)) {
+                Log::info('Usando totales del Result Set 2 (totales agregados del SP)');
+
+                foreach ($totalesPorTipo as $total) {
+                    if ($total->tipo_documento === 'FISCAL') {
+                        $estadisticasFiscales['total_documentos'] = (int)$total->Total;
+                        $estadisticasFiscales['pendientes'] = (int)$total->Pendientes;
+                        $estadisticasFiscales['aprobados'] = (int)$total->Vigentes;
+                        $estadisticasFiscales['caducados'] = (int)($total->Caducados ?? 0);
+                        $estadisticasFiscales['rechazados'] = (int)$total->Rechazados;
+                    } else {
+                        $estadisticasMedicos['total_documentos'] = (int)$total->Total;
+                        $estadisticasMedicos['pendientes'] = (int)$total->Pendientes;
+                        $estadisticasMedicos['aprobados'] = (int)$total->Vigentes;
+                        $estadisticasMedicos['caducados'] = (int)($total->Caducados ?? 0);
+                        $estadisticasMedicos['rechazados'] = (int)$total->Rechazados;
+                    }
+                }
+            } else {
+                // FALLBACK: Calcular desde Result Set 1 si no hay totales agregados
+                Log::info('Result Set 2 vacío, calculando desde Result Set 1');
+
+                foreach ($resultadosPorCampus as $fila) {
+                    if ($fila->tipo_documento === 'FISCAL') {
+                        $estadisticasFiscales['total_documentos'] += (int)$fila->Total;
+                        $estadisticasFiscales['pendientes'] += (int)$fila->Pendientes;
+                        $estadisticasFiscales['aprobados'] += (int)$fila->Vigentes;
+                        $estadisticasFiscales['caducados'] += (int)($fila->Caducados ?? 0);
+                        $estadisticasFiscales['rechazados'] += (int)$fila->Rechazados;
+                    } else {
+                        $estadisticasMedicos['total_documentos'] += (int)$fila->Total;
+                        $estadisticasMedicos['pendientes'] += (int)$fila->Pendientes;
+                        $estadisticasMedicos['aprobados'] += (int)$fila->Vigentes;
+                        $estadisticasMedicos['caducados'] += (int)($fila->Caducados ?? 0);
+                        $estadisticasMedicos['rechazados'] += (int)$fila->Rechazados;
+                    }
                 }
             }
 
@@ -2569,12 +2870,24 @@ class DocumentoController extends Controller
                 'rechazados' => $estadisticasFiscales['rechazados'] + $estadisticasMedicos['rechazados']
             ];
 
-            Log::info('Estadísticas calculadas con stored procedure', [
+            // VERIFICACIÓN: La suma de estados debe coincidir con el total
+            $sumaEstados = $estadisticasTotal['aprobados'] +
+                          $estadisticasTotal['pendientes'] +
+                          $estadisticasTotal['caducados'] +
+                          $estadisticasTotal['rechazados'];
+
+            Log::info('Estadísticas calculadas con stored procedure (usando totales del SP)', [
                 'id_empleado' => $idEmpleado,
                 'total' => $estadisticasTotal,
                 'fiscales' => $estadisticasFiscales,
                 'medicos' => $estadisticasMedicos,
-                'resultados_sp' => $resultados
+                'metodo' => !empty($totalesPorTipo) ? 'result_set_2_totales_sp' : 'result_set_1_calculado',
+                'verificacion_suma' => [
+                    'total_reportado' => $estadisticasTotal['total_documentos'],
+                    'suma_estados' => $sumaEstados,
+                    'diferencia' => $estadisticasTotal['total_documentos'] - $sumaEstados,
+                    'coincide' => $estadisticasTotal['total_documentos'] === $sumaEstados
+                ]
             ]);
 
             return [
@@ -2694,5 +3007,174 @@ class DocumentoController extends Controller
             ]);
             return [];
         }
+    }
+
+    /**
+     * NUEVO MÉTODO: Obtener estadísticas usando SOLO el stored procedure (sin fallbacks)
+     * Este método garantiza que SIEMPRE se usen los datos del SP
+     */
+    private function obtenerEstadisticasDesdeStoredProcedure($idEmpleado, $campusIds)
+    {
+        Log::info('🔵 NUEVO MÉTODO: Obteniendo estadísticas desde SP', [
+            'id_empleado' => $idEmpleado,
+            'campus_ids' => $campusIds
+        ]);
+
+        // Usar PDO para capturar AMBOS result sets del SP
+        $pdo = DB::connection()->getPdo();
+        $stmt = $pdo->prepare('EXEC sug_reporte_estatus_documentos ?, ?');
+        $stmt->execute([$idEmpleado, 0]); // @Todos = 0 (solo campus del director)
+
+        // Result Set 1: Desglose por campus y tipo
+        $resultadosPorCampus = $stmt->fetchAll(\PDO::FETCH_OBJ);
+
+        // Result Set 2: Totales agregados por tipo (FISCAL/MEDICINA)
+        $stmt->nextRowset();
+        $totalesPorTipo = $stmt->fetchAll(\PDO::FETCH_OBJ);
+
+        Log::info('📊 Datos obtenidos del SP', [
+            'result_set_1_count' => count($resultadosPorCampus),
+            'result_set_2_count' => count($totalesPorTipo),
+            'result_set_2_data' => $totalesPorTipo
+        ]);
+
+        // Procesar totales por tipo (Result Set 2) - DATOS MÁS PRECISOS
+        $estadisticasFiscales = [
+            'total_documentos' => 0,
+            'pendientes' => 0,
+            'aprobados' => 0,
+            'en_revision' => 0,
+            'caducados' => 0,
+            'rechazados' => 0
+        ];
+
+        $estadisticasMedicos = [
+            'total_documentos' => 0,
+            'pendientes' => 0,
+            'aprobados' => 0,
+            'en_revision' => 0,
+            'caducados' => 0,
+            'rechazados' => 0
+        ];
+
+        // Usar SOLO el Result Set 2 (totales agregados)
+        foreach ($totalesPorTipo as $total) {
+            if ($total->tipo_documento === 'FISCAL') {
+                $estadisticasFiscales = [
+                    'total_documentos' => (int)$total->Total,
+                    'pendientes' => (int)$total->Pendientes,
+                    'aprobados' => (int)$total->Vigentes,
+                    'en_revision' => 0,
+                    'caducados' => (int)($total->Caducados ?? 0),
+                    'rechazados' => (int)$total->Rechazados
+                ];
+            } else { // MEDICINA
+                $estadisticasMedicos = [
+                    'total_documentos' => (int)$total->Total,
+                    'pendientes' => (int)$total->Pendientes,
+                    'aprobados' => (int)$total->Vigentes,
+                    'en_revision' => 0,
+                    'caducados' => (int)($total->Caducados ?? 0),
+                    'rechazados' => (int)$total->Rechazados
+                ];
+            }
+        }
+
+        // Calcular totales generales
+        $estadisticasTotal = [
+            'total_documentos' => $estadisticasFiscales['total_documentos'] + $estadisticasMedicos['total_documentos'],
+            'pendientes' => $estadisticasFiscales['pendientes'] + $estadisticasMedicos['pendientes'],
+            'aprobados' => $estadisticasFiscales['aprobados'] + $estadisticasMedicos['aprobados'],
+            'en_revision' => 0,
+            'caducados' => $estadisticasFiscales['caducados'] + $estadisticasMedicos['caducados'],
+            'rechazados' => $estadisticasFiscales['rechazados'] + $estadisticasMedicos['rechazados']
+        ];
+
+        // Procesar estadísticas por campus (Result Set 1)
+        $campusNombres = DB::table('campus')
+            ->whereIn('ID_Campus', $campusIds)
+            ->pluck('Campus', 'ID_Campus')
+            ->toArray();
+
+        $estadisticasPorCampus = [];
+
+        foreach ($resultadosPorCampus as $fila) {
+            $campusId = $fila->campus_id;
+            $tipoDoc = $fila->tipo_documento;
+
+            // Inicializar campus si no existe
+            if (!isset($estadisticasPorCampus[$campusId])) {
+                $campusNombre = isset($campusNombres[$campusId])
+                    ? mb_convert_encoding($campusNombres[$campusId], 'UTF-8', 'UTF-8')
+                    : "Campus $campusId";
+
+                $estadisticasPorCampus[$campusId] = [
+                    'campus_id' => (int)$campusId,
+                    'campus_nombre' => $campusNombre,
+                    'fiscales' => [
+                        'total_documentos' => 0,
+                        'pendientes' => 0,
+                        'aprobados' => 0,
+                        'caducados' => 0,
+                        'rechazados' => 0,
+                        'en_revision' => 0,
+                        'subidos' => 0
+                    ],
+                    'medicos' => [
+                        'total_documentos' => 0,
+                        'pendientes' => 0,
+                        'aprobados' => 0,
+                        'caducados' => 0,
+                        'rechazados' => 0,
+                        'en_revision' => 0,
+                        'subidos' => 0
+                    ]
+                ];
+            }
+
+            // Determinar tipo
+            $tipoEstadistica = ($tipoDoc === 'FISCAL') ? 'fiscales' : 'medicos';
+
+            // Asignar valores del SP
+            $estadisticasPorCampus[$campusId][$tipoEstadistica] = [
+                'total_documentos' => (int)$fila->Total,
+                'pendientes' => (int)$fila->Pendientes,
+                'aprobados' => (int)$fila->Vigentes,
+                'caducados' => (int)($fila->Caducados ?? 0),
+                'rechazados' => (int)$fila->Rechazados,
+                'en_revision' => 0,
+                'subidos' => 0
+            ];
+        }
+
+        // Calcular totales por campus
+        foreach ($estadisticasPorCampus as &$campus) {
+            $campus['total_documentos'] = $campus['fiscales']['total_documentos'] + $campus['medicos']['total_documentos'];
+            $campus['total_aprobados'] = $campus['fiscales']['aprobados'] + $campus['medicos']['aprobados'];
+            $campus['total_caducados'] = $campus['fiscales']['caducados'] + $campus['medicos']['caducados'];
+            $campus['total_pendientes'] = $campus['fiscales']['pendientes'] + $campus['medicos']['pendientes'];
+            $campus['total_rechazados'] = $campus['fiscales']['rechazados'] + $campus['medicos']['rechazados'];
+
+            $campus['porcentaje_cumplimiento'] = $campus['total_documentos'] > 0
+                ? round(($campus['total_aprobados'] / $campus['total_documentos']) * 100)
+                : 0;
+
+            $campus['tiene_fiscales'] = $campus['fiscales']['total_documentos'] > 0;
+            $campus['tiene_medicos'] = $campus['medicos']['total_documentos'] > 0;
+        }
+
+        Log::info('✅ Estadísticas procesadas desde SP', [
+            'total' => $estadisticasTotal,
+            'fiscales' => $estadisticasFiscales,
+            'medicos' => $estadisticasMedicos,
+            'campus_count' => count($estadisticasPorCampus)
+        ]);
+
+        return [
+            'total' => (object) $estadisticasTotal,
+            'fiscales' => (object) $estadisticasFiscales,
+            'medicos' => (object) $estadisticasMedicos,
+            'por_campus' => array_values($estadisticasPorCampus)
+        ];
     }
 }

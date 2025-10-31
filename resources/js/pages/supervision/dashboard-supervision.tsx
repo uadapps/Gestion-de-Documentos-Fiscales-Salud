@@ -181,7 +181,7 @@ export default function DashboardSupervision() {
         const alturaBase =70; // Aumentado para los márgenes más grandes
         // Sin altura máxima para que muestre todos los campus
         const alturaCalculada = alturaBase + (cantidad * alturaPorCampus);
-        console.log('Campus total:', cantidad, 'Altura calculada:', alturaCalculada);
+     //   console.log('Campus total:', cantidad, 'Altura calculada:', alturaCalculada);
         return Math.max(alturaCalculada, alturaMinima);
     };
 

@@ -43,22 +43,15 @@ class SupervisionController extends Controller
 
     public function dashboard()
     {
-        Log::info('Debug - Iniciando SupervisionController::dashboard()');
-
         try {
             // Obtener estadísticas generales
             $estadisticasGenerales = $this->getEstadisticasGenerales();
-            Log::info('Debug - Estadísticas obtenidas');
 
             // Obtener datos por campus para el semáforo
             $datosSemaforo = $this->getDatosSemaforo();
-            Log::info('Debug - Datos semáforo obtenidos');
 
             // Obtener tendencias mensuales
             $tendenciasMensuales = $this->getTendenciasMensuales();
-            Log::info('Debug - Tendencias obtenidas');
-
-            Log::info('Debug - Renderizando vista supervision/dashboard');
 
             return Inertia::render('supervision/dashboard', [
                 'estadisticasGenerales' => $this->sanitizeUtf8($estadisticasGenerales),
@@ -82,26 +75,16 @@ class SupervisionController extends Controller
 
     public function detallesCampusPorSlug($campus_hash)
     {
-        Log::info('Debug - Iniciando SupervisionController::detallesCampusPorSlug', ['campus_hash' => $campus_hash]);
-
         try {
             // Buscar el campus por hash generado a partir del nombre e ID
             $campusEncontrado = null;
             $campuses = campus_model::where('Activo', true)->get();
 
-            Log::info('Debug - Campus activos encontrados', ['total' => $campuses->count()]);
-
             foreach ($campuses as $campus) {
-                // Usar ID original (puede tener padding) para coincidir con el frontend
-                $campusId = (string) $campus->ID_Campus;
-                $generatedHash = $this->generateCampusHash($campus->Campus, $campusId);
-                Log::info('Debug - Comparando hashes', [
-                    'campus' => $campus->Campus,
-                    'id_campus' => $campusId,
-                    'generated_hash' => $generatedHash,
-                    'target_hash' => $campus_hash,
-                    'match' => $generatedHash === $campus_hash
-                ]);
+                // IMPORTANTE: Usar el mismo formato de ID que viene del stored procedure
+                // El stored procedure devuelve IDs con padding: "01", "02", "65", "66"
+                $campusIdWithPadding = str_pad((string)$campus->ID_Campus, 2, '0', STR_PAD_LEFT);
+                $generatedHash = $this->generateCampusHash($campus->Campus, $campusIdWithPadding);
 
                 if ($generatedHash === $campus_hash) {
                     $campusEncontrado = $campus;
@@ -110,14 +93,6 @@ class SupervisionController extends Controller
             }
 
             if (!$campusEncontrado) {
-                Log::warning('Campus no encontrado para hash', [
-                    'campus_hash' => $campus_hash,
-                    'hashes_generados' => $campuses->map(fn($c) => [
-                        'campus' => $c->Campus,
-                        'id' => $c->ID_Campus,
-                        'hash' => $this->generateCampusHash($c->Campus, $c->ID_Campus)
-                    ])
-                ]);
                 abort(404, 'Campus no encontrado');
             }
 
@@ -157,14 +132,11 @@ class SupervisionController extends Controller
             $hash = $hash & 0xFFFFFFFF; // Convert to 32-bit integer
         }
 
-        $result = substr(dechex(abs($hash)), 0, 8);
+        $result = dechex(abs($hash));
 
-        Log::info('Debug - generateCampusHash', [
-            'input' => $input,
-            'campusName' => $campusName,
-            'campusId' => $campusId,
-            'hash' => $result
-        ]);
+        // Asegurar que siempre tenga 8 caracteres, igual que el frontend
+        $result = str_pad($result, 8, '0', STR_PAD_LEFT);
+        $result = substr($result, 0, 8);
 
         return $result;
     }
@@ -254,7 +226,6 @@ class SupervisionController extends Controller
     {
         // Verificar que el campus no esté excluido
         if (in_array($id_campus, self::CAMPUS_EXCLUIDOS)) {
-            Log::warning('Campus excluido de supervisión', ['id_campus' => $id_campus]);
             abort(404, 'Campus no disponible para supervisión');
         }
 
@@ -265,7 +236,6 @@ class SupervisionController extends Controller
                 ->first();
 
             if (!$campus) {
-                Log::error('Campus no encontrado', ['id_campus' => $id_campus]);
                 abort(404, 'Campus no encontrado');
             }
 
@@ -291,6 +261,7 @@ class SupervisionController extends Controller
                 'documentos_agrupados' => $this->sanitizeUtf8($datosDocumentos['documentos_agrupados'] ?? []),
                 'usuarios' => $this->sanitizeUtf8($usuarios),
                 'estadisticas' => $this->sanitizeUtf8($estadisticasDetalladas),
+                'estadisticas_sp' => $this->sanitizeUtf8($datosDocumentos['estadisticas_sp'] ?? null),
             ]);
 
         } catch (\Exception $e) {
@@ -315,26 +286,51 @@ class SupervisionController extends Controller
                 ->toArray();
 
             if (empty($campusActivos)) {
-                Log::warning('No se encontraron campus activos para supervisión');
                 return $this->getEstadisticasEjemplo();
             }
 
-            // Usar el mismo método que DocumentoController para obtener estadísticas reales
-            $estadisticasReales = $this->generarEstadisticasPorCampus($campusActivos);
+            // Usar el mismo método que usa dashboardGlobal (retorna array con 'estadisticas_por_campus' y 'totales_globales_sp')
+            $datosSP = $this->generarEstadisticasPorCampus($campusActivos);
+            $estadisticasReales = $datosSP['estadisticas_por_campus'] ?? [];
+            $totalesGlobalesSP = $datosSP['totales_globales_sp'] ?? [];
 
-            $totalDocumentos = 0;
-            $documentosVigentes = 0;
-            $documentosCaducados = 0;
-            $documentosPendientes = 0;
-            $documentosRechazados = 0;
+            // Convertir totales globales del SP a estructura más accesible
+            $totalesPorTipo = [];
+            foreach ($totalesGlobalesSP as $row) {
+                $totalesPorTipo[$row->tipo_documento] = [
+                    'Vigentes' => (int)$row->Vigentes,
+                    'Caducados' => (int)$row->Caducados,
+                    'Rechazados' => (int)$row->Rechazados,
+                    'Pendientes' => (int)$row->Pendientes,
+                    'Total' => (int)$row->Total
+                ];
+            }
 
-            // Sumar estadísticas de todos los campus
-            foreach ($estadisticasReales as $campus) {
-                $totalDocumentos += $campus['total_documentos'];
-                $documentosVigentes += $campus['total_aprobados']; // Cambiar a aprobados
-                $documentosCaducados += $campus['total_caducados'];
-                $documentosPendientes += $campus['total_pendientes'];
-                $documentosRechazados += $campus['total_rechazados'];
+            // Usar totales del SP si están disponibles, sino calcular desde estadisticas_por_campus
+            if (!empty($totalesPorTipo)) {
+                $totalFiscal = $totalesPorTipo['FISCAL'] ?? ['Vigentes' => 0, 'Caducados' => 0, 'Rechazados' => 0, 'Pendientes' => 0, 'Total' => 0];
+                $totalMedicina = $totalesPorTipo['MEDICINA'] ?? ['Vigentes' => 0, 'Caducados' => 0, 'Rechazados' => 0, 'Pendientes' => 0, 'Total' => 0];
+
+                $totalDocumentos = $totalFiscal['Total'] + $totalMedicina['Total'];
+                $documentosVigentes = $totalFiscal['Vigentes'] + $totalMedicina['Vigentes'];
+                $documentosCaducados = $totalFiscal['Caducados'] + $totalMedicina['Caducados'];
+                $documentosPendientes = $totalFiscal['Pendientes'] + $totalMedicina['Pendientes'];
+                $documentosRechazados = $totalFiscal['Rechazados'] + $totalMedicina['Rechazados'];
+            } else {
+                // Fallback: calcular desde estadisticas_por_campus
+                $totalDocumentos = 0;
+                $documentosVigentes = 0;
+                $documentosCaducados = 0;
+                $documentosPendientes = 0;
+                $documentosRechazados = 0;
+
+                foreach ($estadisticasReales as $campus) {
+                    $totalDocumentos += $campus['total_documentos'];
+                    $documentosVigentes += $campus['total_aprobados'];
+                    $documentosCaducados += $campus['total_caducados'];
+                    $documentosPendientes += $campus['total_pendientes'];
+                    $documentosRechazados += $campus['total_rechazados'];
+                }
             }
 
             // Mantener compatibilidad
@@ -342,16 +338,6 @@ class SupervisionController extends Controller
 
             $totalUsuarios = usuario_model::whereIn('ID_Campus', $campusActivos)->count();
             $totalCampus = count($campusActivos);
-
-            Log::info('Estadísticas de supervisión calculadas:', [
-                'total_documentos' => $totalDocumentos,
-                'vigentes' => $documentosVigentes,
-                'caducados' => $documentosCaducados,
-                'pendientes' => $documentosPendientes,
-                'rechazados' => $documentosRechazados,
-                'usuarios' => $totalUsuarios,
-                'campus' => $totalCampus
-            ]);
 
             return [
                 'tipo_usuario' => 'supervisor',
@@ -367,7 +353,8 @@ class SupervisionController extends Controller
                 'documentosRechazados' => $documentosRechazados,
                 'usuariosActivos' => $totalUsuarios,
                 'campusConectados' => $totalCampus,
-                'estadisticas_por_campus' => $estadisticasReales, // Agregar datos por campus
+                'estadisticas_por_campus' => $estadisticasReales,
+                'totales_por_tipo' => $totalesPorTipo, // Agregar totales del SP por tipo
             ];
 
         } catch (\Exception $e) {
@@ -389,8 +376,9 @@ class SupervisionController extends Controller
                 return $this->getDatosSemaforoEjemplo();
             }
 
-            // Usar método del DocumentoController para obtener estadísticas reales
-            $estadisticasPorCampus = $this->generarEstadisticasPorCampus($campusActivos);
+            // Usar método del DocumentoController (retorna array con 'estadisticas_por_campus' y 'totales_globales_sp')
+            $datosSP = $this->generarEstadisticasPorCampus($campusActivos);
+            $estadisticasPorCampus = $datosSP['estadisticas_por_campus'] ?? [];
 
             Log::info('Debug - Campus con estadísticas:', ['count' => count($estadisticasPorCampus)]);
 
@@ -421,6 +409,10 @@ class SupervisionController extends Controller
                     (int)($campus['total_aprobados'][0] ?? 0) :
                     (int)$campus['total_aprobados'];
 
+                $totalCaducados = is_array($campus['total_caducados']) ?
+                    (int)($campus['total_caducados'][0] ?? 0) :
+                    (int)$campus['total_caducados'];
+
                 $documentosPendientes = $documentosTotal - $totalAprobados;
 
                 // Determinar estado basado en cumplimiento real
@@ -431,9 +423,15 @@ class SupervisionController extends Controller
                     'estado' => $estado,
                     'cumplimiento' => $cumplimiento,
                     'documentosTotal' => $documentosTotal,
+                    'total_vigentes' => $totalAprobados,  // Vigentes (aprobados)
+                    'total_caducados' => $totalCaducados, // Caducados
+                    'total_aprobados' => $totalAprobados, // Para compatibilidad con frontend
                     'documentosVencidos' => $documentosPendientes,
                     'usuariosActivos' => $usuariosActivos,
-                    'id_campus' => $campus['campus_id']
+                    'id_campus' => $campus['campus_id'],
+                    'campus_id' => $campus['campus_id'], // Para compatibilidad
+                    'campus_nombre' => $campus['campus_nombre'], // Para compatibilidad
+                    'campus_hash' => $campus['campus_hash'], // Hash para navegación
                 ];
             }
 
@@ -554,10 +552,41 @@ class SupervisionController extends Controller
         try {
             Log::info("Obteniendo documentos para campus: {$id_campus} usando SP");
 
-            // Usar el stored procedure que ya tienes
-            $documentos = DB::select('EXEC sug_reporte_detalle_por_campus ?', [$id_campus]);
+            // Usar PDO para obtener múltiples result sets del SP
+            $pdo = DB::connection()->getPdo();
+            $stmt = $pdo->prepare('EXEC sug_reporte_detalle_por_campus ?');
+            $stmt->execute([$id_campus]);
 
-            Log::info("Documentos encontrados con SP: " . count($documentos));
+            // Result Set 1: Detalle completo de documentos con archivos
+            $documentos = $stmt->fetchAll(\PDO::FETCH_OBJ);
+
+            // Result Set 2: Resumen por tipo (FISCAL/MEDICINA)
+            $resumenPorTipo = [];
+            if ($stmt->nextRowset()) {
+                $resumenPorTipo = $stmt->fetchAll(\PDO::FETCH_OBJ);
+            }
+
+            // Result Set 3: Total general del campus
+            $totalGeneral = null;
+            if ($stmt->nextRowset()) {
+                $totalGeneralRaw = $stmt->fetchAll(\PDO::FETCH_OBJ);
+                if (!empty($totalGeneralRaw)) {
+                    $totalGeneral = $totalGeneralRaw[0];
+                }
+            }
+
+            // Result Set 4: Resumen por carrera
+            $resumenPorCarrera = [];
+            if ($stmt->nextRowset()) {
+                $resumenPorCarrera = $stmt->fetchAll(\PDO::FETCH_OBJ);
+            }
+
+            Log::info("Result sets del SP:", [
+                'documentos_count' => count($documentos),
+                'resumen_por_tipo_count' => count($resumenPorTipo),
+                'total_general' => $totalGeneral,
+                'resumen_por_carrera_count' => count($resumenPorCarrera)
+            ]);
 
             if (count($documentos) > 0) {
                 // Debug: Mostrar propiedades del primer documento
@@ -612,12 +641,15 @@ class SupervisionController extends Controller
                     }
 
                     $observaciones = !empty($doc->observaciones) ? $this->sanitizeUtf8($doc->observaciones) : null;
+                    $observaciones_archivo = !empty($doc->observaciones_archivo) ? $this->sanitizeUtf8($doc->observaciones_archivo) : null;
                     $usuario = !empty($doc->capturado_por) ? $this->sanitizeUtf8($doc->capturado_por) : '';
+                    $actualizado_por = !empty($doc->actualizado_por) ? $this->sanitizeUtf8($doc->actualizado_por) : null;
                     $carrera = !empty($doc->carrera_nombre) ? $this->sanitizeUtf8($doc->carrera_nombre) : null;
                     $lugar_expedicion = !empty($doc->lugar_expedicion) ? $this->sanitizeUtf8($doc->lugar_expedicion) : null;
 
                     return [
                         'id' => $doc->documento_id,
+                        'sdi_id' => $doc->sdi_id ?? null, // ID de la tabla sug_documentos_informacion
                         'nombre' => $nombre,
                         'tipo' => $this->sanitizeUtf8($doc->documento_catalogo),
                         'tipo_documento' => $this->sanitizeUtf8($tipoDocumento), // Campo para agrupación usando la variable calculada
@@ -630,12 +662,13 @@ class SupervisionController extends Controller
                         'usuario' => $usuario,
                         'tamano' => 'N/A', // No disponible en el SP
                         'observaciones' => $observaciones,
+                        'observaciones_archivo' => $observaciones_archivo,
                         'folio' => $doc->folio_documento,
                         'lugar_expedicion' => $lugar_expedicion,
                         'dias_restantes' => $doc->dias_restantes_vigencia ?? null,
                         'carrera' => $carrera,
                         'aplica_area_salud' => $doc->aplica_area_salud ? 'Sí' : 'No',
-                        'actualizado_por' => !empty($doc->actualizado_por) ? $this->sanitizeUtf8($doc->actualizado_por) : $usuario,
+                        'actualizado_por' => $actualizado_por,
 
                         // Información para descarga/visualización
                         'ruta_pdf' => $doc->archivo_pdf ?? null,
@@ -666,7 +699,12 @@ class SupervisionController extends Controller
                             'rechazados' => $docs->where('estado', 'rechazado')->count(),
                             'documentos' => $docs->values()->toArray()
                         ];
-                    })->values()->toArray()
+                    })->values()->toArray(),
+                    'estadisticas_sp' => [
+                        'resumen_por_tipo' => $resumenPorTipo,
+                        'total_general' => $totalGeneral,
+                        'resumen_por_carrera' => $resumenPorCarrera
+                    ]
                 ];
 
                 return $resultado;
@@ -675,7 +713,12 @@ class SupervisionController extends Controller
             Log::info("No se encontraron documentos en el SP para campus: " . $id_campus);
             return [
                 'documentos' => [],
-                'documentos_agrupados' => []
+                'documentos_agrupados' => [],
+                'estadisticas_sp' => [
+                    'resumen_por_tipo' => [],
+                    'total_general' => null,
+                    'resumen_por_carrera' => []
+                ]
             ];
 
         } catch (\Exception $e) {
@@ -768,27 +811,33 @@ class SupervisionController extends Controller
         try {
             Log::info("Calculando estadísticas para campus: {$id_campus}");
 
-            // Obtener datos reales del stored procedure
-            $documentos = DB::select('EXEC sug_reporte_detalle_por_campus ?', [$id_campus]);
+            // Obtener datos del stored procedure con todos los result sets
+            $pdo = DB::connection()->getPdo();
+            $stmt = $pdo->prepare('EXEC sug_reporte_detalle_por_campus ?');
+            $stmt->execute([$id_campus]);
 
-            $totalDocumentos = count($documentos);
-            $documentosAprobados = 0;
-            $documentosVencidos = 0;
-            $documentosPendientes = 0;
-            $documentosRechazados = 0;
+            // Result Set 1: Detalle (no lo necesitamos aquí)
+            $stmt->fetchAll(\PDO::FETCH_OBJ);
 
-            // Contar por estado basado en los datos reales del SP
-            foreach ($documentos as $doc) {
-                if ($doc->estado_final === 'VIGENTE') {
-                    $documentosAprobados++;
-                } elseif ($doc->estado_final === 'VENCIDO' || $doc->dias_restantes_vigencia < 0) {
-                    $documentosVencidos++;
-                } elseif ($doc->estado_final === 'RECHAZADO') {
-                    $documentosRechazados++;
-                } else {
-                    $documentosPendientes++;
+            // Result Set 2: Resumen por tipo (FISCAL/MEDICINA)
+            $stmt->nextRowset();
+            $stmt->fetchAll(\PDO::FETCH_OBJ);
+
+            // Result Set 3: Total general del campus (¡Este es el que necesitamos!)
+            $totalGeneral = null;
+            if ($stmt->nextRowset()) {
+                $totalGeneralRaw = $stmt->fetchAll(\PDO::FETCH_OBJ);
+                if (!empty($totalGeneralRaw)) {
+                    $totalGeneral = $totalGeneralRaw[0];
                 }
             }
+
+            // Usar las estadísticas del SP
+            $totalDocumentos = $totalGeneral ? ($totalGeneral->Total ?? 0) : 0;
+            $documentosAprobados = $totalGeneral ? ($totalGeneral->Vigentes ?? 0) : 0;
+            $documentosVencidos = $totalGeneral ? ($totalGeneral->Caducados ?? 0) : 0;
+            $documentosRechazados = $totalGeneral ? ($totalGeneral->Rechazados ?? 0) : 0;
+            $documentosPendientes = $totalGeneral ? ($totalGeneral->Pendientes ?? 0) : 0;
 
             // Estadísticas básicas de usuarios (sin consultas problemáticas)
             $usuariosTotal = \App\Models\usuario_model::where('ID_Campus', $id_campus)->count();
@@ -798,12 +847,13 @@ class SupervisionController extends Controller
             // Calcular cumplimiento
             $cumplimiento = $totalDocumentos > 0 ? round(($documentosAprobados / $totalDocumentos) * 100, 1) : 0;
 
-            Log::info("Estadísticas calculadas:", [
+            Log::info("Estadísticas calculadas desde SP:", [
                 'usuarios' => $usuariosTotal,
                 'documentos' => $totalDocumentos,
                 'aprobados' => $documentosAprobados,
                 'vencidos' => $documentosVencidos,
                 'pendientes' => $documentosPendientes,
+                'rechazados' => $documentosRechazados,
                 'cumplimiento' => $cumplimiento
             ]);
 
@@ -973,21 +1023,37 @@ class SupervisionController extends Controller
 
             Log::info('Usando SP con @Todos=1 para obtener datos de TODOS los campus');
 
-            // Ejecutar el stored procedure CON el parámetro @Todos=1
-            $resultados = DB::select('EXEC sug_reporte_estatus_documentos ?, ?', [$idEmpleadoGenerico, 1]);            Log::info('Resultados del SP con @Todos=1', [
-                'resultados_count' => count($resultados),
-                'primera_fila' => count($resultados) > 0 ? get_object_vars($resultados[0]) : 'Sin resultados'
+            // Ejecutar el stored procedure CON PDO para obtener múltiples result sets
+            $pdo = DB::connection()->getPdo();
+            $stmt = $pdo->prepare('EXEC sug_reporte_estatus_documentos ?, ?');
+            $stmt->execute([$idEmpleadoGenerico, 1]);
+
+            // RESULT SET 1: Desglosado por campus y tipo
+            $resultados = $stmt->fetchAll(\PDO::FETCH_OBJ);
+
+            // RESULT SET 2: Totales globales por tipo
+            $stmt->nextRowset();
+            $totalesGlobales = $stmt->fetchAll(\PDO::FETCH_OBJ);
+
+            Log::info('Resultados del SP con @Todos=1', [
+                'result_set_1_count' => count($resultados),
+                'result_set_2_count' => count($totalesGlobales),
+                'primera_fila_rs1' => count($resultados) > 0 ? get_object_vars($resultados[0]) : 'Sin resultados',
+                'primera_fila_rs2' => count($totalesGlobales) > 0 ? get_object_vars($totalesGlobales[0]) : 'Sin totales'
             ]);
 
             // Obtener nombres reales de campus
-            $campusIdsDelSP = collect($resultados)->pluck('campus_id')->unique()->toArray();
+            $campusIdsDelSP = collect($resultados)->pluck('campus_id')->unique()->values()->toArray();
 
             // Asegurar que los IDs sean enteros para la consulta
-            $campusIdsEnteros = array_map('intval', $campusIdsDelSP);
+            $campusIdsEnteros = array_values(array_map('intval', $campusIdsDelSP));
 
             $campusNombres = campus_model::whereIn('ID_Campus', $campusIdsEnteros)
                 ->where('Activo', 1)
-                ->pluck('Campus', 'ID_Campus')
+                ->get()
+                ->mapWithKeys(function($campus) {
+                    return [(int)$campus->ID_Campus => $campus->Campus];
+                })
                 ->toArray();
 
             Log::info('Nombres de campus obtenidos', [
@@ -999,18 +1065,21 @@ class SupervisionController extends Controller
 
             // Agrupar resultados por campus
             foreach ($resultados as $fila) {
-                $campusId = $fila->campus_id;
+                // Mantener campus_id como string para preservar padding del SP
+                $campusIdOriginal = (string)$fila->campus_id;
+                // También obtener versión entera para usar como clave del array
+                $campusIdInt = (int)$fila->campus_id;
                 $tipoDoc = $fila->tipo_documento;
 
                 // Inicializar campus si no existe
-                if (!isset($estadisticasPorCampus[$campusId])) {
+                if (!isset($estadisticasPorCampus[$campusIdInt])) {
                     // Obtener nombre del campus
-                    $campusNombre = isset($campusNombres[$campusId])
-                        ? mb_convert_encoding($campusNombres[$campusId], 'UTF-8', 'UTF-8')
-                        : "Campus $campusId";
+                    $campusNombre = isset($campusNombres[$campusIdInt])
+                        ? mb_convert_encoding($campusNombres[$campusIdInt], 'UTF-8', 'UTF-8')
+                        : "Campus $campusIdInt";
 
-                    $estadisticasPorCampus[$campusId] = [
-                        'campus_id' => (int)$campusId,
+                    $estadisticasPorCampus[$campusIdInt] = [
+                        'campus_id' => $campusIdOriginal, // Mantener original con padding
                         'campus_nombre' => $campusNombre,
                         'fiscales' => [
                             'total_documentos' => 0,
@@ -1035,17 +1104,17 @@ class SupervisionController extends Controller
                 $tipoEstadistica = ($tipoDoc === 'FISCAL') ? 'fiscales' : 'medicos';
 
                 // Actualizar estadísticas usando los nombres exactos del SP
-                $estadisticasPorCampus[$campusId][$tipoEstadistica]['total_documentos'] = (int)$fila->Total;
-                $estadisticasPorCampus[$campusId][$tipoEstadistica]['pendientes'] = (int)$fila->Pendientes;
-                $estadisticasPorCampus[$campusId][$tipoEstadistica]['aprobados'] = (int)$fila->Vigentes; // Mapear Vigentes a aprobados
-                $estadisticasPorCampus[$campusId][$tipoEstadistica]['caducados'] = (int)($fila->Caducados ?? 0);
-                $estadisticasPorCampus[$campusId][$tipoEstadistica]['rechazados'] = (int)$fila->Rechazados;
-                $estadisticasPorCampus[$campusId][$tipoEstadistica]['subidos'] = 0; // Campo requerido por frontend
+                $estadisticasPorCampus[$campusIdInt][$tipoEstadistica]['total_documentos'] = (int)$fila->Total;
+                $estadisticasPorCampus[$campusIdInt][$tipoEstadistica]['pendientes'] = (int)$fila->Pendientes;
+                $estadisticasPorCampus[$campusIdInt][$tipoEstadistica]['aprobados'] = (int)$fila->Vigentes; // Mapear Vigentes a aprobados
+                $estadisticasPorCampus[$campusIdInt][$tipoEstadistica]['caducados'] = (int)($fila->Caducados ?? 0);
+                $estadisticasPorCampus[$campusIdInt][$tipoEstadistica]['rechazados'] = (int)$fila->Rechazados;
+                $estadisticasPorCampus[$campusIdInt][$tipoEstadistica]['subidos'] = 0; // Campo requerido por frontend
 
                 // Debug: Log de caducados para verificar
                 if (isset($fila->Caducados) && (int)$fila->Caducados > 0) {
                     Log::info("Caducados encontrados en SP", [
-                        'campus_id' => $campusId,
+                        'campus_id' => $campusIdInt,
                         'tipo_documento' => $tipoDoc,
                         'caducados_raw' => $fila->Caducados,
                         'caducados_int' => (int)$fila->Caducados,
@@ -1055,7 +1124,7 @@ class SupervisionController extends Controller
             }
 
             // Calcular totales por campus y agregar propiedades adicionales
-            foreach ($estadisticasPorCampus as $campusId => &$campus) {
+            foreach ($estadisticasPorCampus as $campusIdInt => &$campus) {
                 // Calcular totales generales del campus
                 $campus['total_documentos'] = $campus['fiscales']['total_documentos'] + $campus['medicos']['total_documentos'];
                 $campus['total_aprobados'] = $campus['fiscales']['aprobados'] + $campus['medicos']['aprobados'];
@@ -1071,7 +1140,7 @@ class SupervisionController extends Controller
                     : 0;
 
                 // Generar hash del campus para navegación
-                $campusIdStr = (string) $campusId;
+                $campusIdStr = $campus['campus_id']; // Usar el ID original con padding
                 $campus['campus_hash'] = $this->generateCampusHash($campus['campus_nombre'], $campusIdStr);
 
                 // Determinar qué tipos de documentos tiene este campus
@@ -1088,6 +1157,7 @@ class SupervisionController extends Controller
                     ]);
                 }
             }
+            unset($campus); // IMPORTANTE: Liberar la referencia del foreach
 
             // Convertir a array indexado
             $resultado = array_values($estadisticasPorCampus);
@@ -1112,7 +1182,11 @@ class SupervisionController extends Controller
                 }))
             ]);
 
-            return $resultado;
+            // Retornar ambos: estadísticas por campus Y totales globales del SP
+            return [
+                'estadisticas_por_campus' => $resultado,
+                'totales_globales_sp' => $totalesGlobales
+            ];
 
         } catch (\Exception $e) {
             Log::error('Error generando estadísticas para supervisión con @Todos=1', [
@@ -1120,7 +1194,10 @@ class SupervisionController extends Controller
                 'error' => $e->getMessage()
             ]);
 
-            return [];
+            return [
+                'estadisticas_por_campus' => [],
+                'totales_globales_sp' => []
+            ];
         }
     }
 
@@ -1132,18 +1209,36 @@ class SupervisionController extends Controller
         try {
             Log::info('Iniciando dashboardGlobal para supervisión');
 
-            // Obtener estadísticas de supervisión completas
+            // Obtener estadísticas de supervisión completas (retorna array con 'estadisticas_por_campus' y 'totales_globales_sp')
             $campusIds = []; // No importa porque usa @Todos=1
-            $estadisticasPorCampus = $this->generarEstadisticasPorCampus($campusIds);
+            $datosSP = $this->generarEstadisticasPorCampus($campusIds);
 
-            // Calcular estadísticas generales
+            $estadisticasPorCampus = $datosSP['estadisticas_por_campus'] ?? [];
+            $totalesGlobalesSP = $datosSP['totales_globales_sp'] ?? [];
+
+            // Convertir totales globales del SP a estructura más accesible
+            $totalesPorTipo = [];
+            foreach ($totalesGlobalesSP as $row) {
+                $totalesPorTipo[$row->tipo_documento] = [
+                    'Vigentes' => (int)$row->Vigentes,
+                    'Caducados' => (int)$row->Caducados,
+                    'Rechazados' => (int)$row->Rechazados,
+                    'Pendientes' => (int)$row->Pendientes,
+                    'Total' => (int)$row->Total
+                ];
+            }
+
+            // Calcular estadísticas generales USANDO LOS TOTALES DEL SP
+            $totalFiscal = $totalesPorTipo['FISCAL'] ?? ['Vigentes' => 0, 'Caducados' => 0, 'Rechazados' => 0, 'Pendientes' => 0, 'Total' => 0];
+            $totalMedicina = $totalesPorTipo['MEDICINA'] ?? ['Vigentes' => 0, 'Caducados' => 0, 'Rechazados' => 0, 'Pendientes' => 0, 'Total' => 0];
+
             $estadisticasGenerales = [
                 'total_campus' => count($estadisticasPorCampus),
-                'total_documentos' => array_sum(array_column($estadisticasPorCampus, 'total_documentos')),
-                'total_aprobados' => array_sum(array_column($estadisticasPorCampus, 'total_aprobados')),
-                'total_pendientes' => array_sum(array_column($estadisticasPorCampus, 'total_pendientes')),
-                'total_caducados' => array_sum(array_column($estadisticasPorCampus, 'total_caducados')),
-                'total_rechazados' => array_sum(array_column($estadisticasPorCampus, 'total_rechazados')),
+                'total_documentos' => $totalFiscal['Total'] + $totalMedicina['Total'],
+                'total_aprobados' => $totalFiscal['Vigentes'] + $totalMedicina['Vigentes'],
+                'total_pendientes' => $totalFiscal['Pendientes'] + $totalMedicina['Pendientes'],
+                'total_caducados' => $totalFiscal['Caducados'] + $totalMedicina['Caducados'],
+                'total_rechazados' => $totalFiscal['Rechazados'] + $totalMedicina['Rechazados'],
                 'cumplimiento_promedio' => round(array_sum(array_column($estadisticasPorCampus, 'porcentaje_cumplimiento')) / max(1, count($estadisticasPorCampus)), 1),
                 'campus_criticos' => count(array_filter($estadisticasPorCampus, function($campus) {
                     return $campus['porcentaje_cumplimiento'] < 60;
@@ -1155,6 +1250,7 @@ class SupervisionController extends Controller
             $datosSupervision = [
                 'estadisticas_generales' => $estadisticasGenerales,
                 'estadisticas_por_campus' => $estadisticasPorCampus,
+                'totales_por_tipo' => $totalesPorTipo, // Agregar totales del SP por tipo
                 'campus_alertas' => [], // Placeholder por ahora
                 'tendencias' => [] // Placeholder por ahora
             ];
@@ -1162,7 +1258,9 @@ class SupervisionController extends Controller
             Log::info('DashboardGlobal datos preparados', [
                 'total_campus' => $estadisticasGenerales['total_campus'],
                 'total_documentos' => $estadisticasGenerales['total_documentos'],
-                'cumplimiento_promedio' => $estadisticasGenerales['cumplimiento_promedio']
+                'cumplimiento_promedio' => $estadisticasGenerales['cumplimiento_promedio'],
+                'totales_sp_fiscal' => $totalFiscal,
+                'totales_sp_medicina' => $totalMedicina
             ]);
 
             return Inertia::render('supervision/dashboard-supervision', [
@@ -1195,5 +1293,162 @@ class SupervisionController extends Controller
                 ]
             ]);
         }
+    }
+
+
+
+    /**
+     * Actualizar el estado y/o fecha de vigencia de un documento
+     * Solo disponible para rol 20 (Planeacion_Desarrollo)
+     */
+    public function actualizarDocumento(Request $request, $documentoId)
+    {
+        try {
+            // Verificar que el usuario tenga rol 20
+            $authUser = \Illuminate\Support\Facades\Auth::user();
+
+            if (!$authUser) {
+                return back()->with('error', 'Usuario no autenticado');
+            }
+
+            $user = \App\Models\usuario_model::where('Usuario', $authUser->getAuthIdentifier())->first();
+
+            if (!$user) {
+                return back()->with('error', 'Usuario no autorizado');
+            }
+
+            // Obtener roles usando la relación existente
+            $rolesCollection = $user->roles()->get();
+            $roles = $rolesCollection->pluck('ID_Rol')->toArray();
+            $hasRole20 = in_array(20, $roles) || in_array('20', $roles);
+
+            if (!$hasRole20) {
+                return back()->with('error', 'No tiene permisos para actualizar documentos');
+            }
+
+            // Buscar directamente en sug_documentos_informacion usando el ID de la tabla
+            $informacion = \App\Models\SugDocumentoInformacion::find($documentoId);
+
+            if (!$informacion) {
+                return back()->with('error', 'No se encontró información del documento');
+            }
+
+            // Actualizar estado si se proporcionó
+            if ($request->has('estado') && $request->estado) {
+                $nuevoEstado = $request->estado;
+
+                // Mapear el estado del frontend al campo estado de la BD
+                switch ($nuevoEstado) {
+                    case 'aprobado':
+                        $informacion->estado = 'vigente';
+                        break;
+                    case 'rechazado':
+                        $informacion->estado = 'rechazado';
+                        break;
+                    case 'pendiente':
+                        $informacion->estado = 'pendiente';
+                        break;
+                    case 'vencido':
+                        $informacion->estado = 'vencido';
+                        // Si no se proporcionó fecha de vencimiento, establecerla en el pasado
+                        if (!$request->has('vigencia_documento') || !$request->vigencia_documento) {
+                            $informacion->vigencia_documento = now()->subDay()->format('Y-m-d');
+                        }
+                        break;
+                }
+            }
+
+            // Actualizar fecha de vigencia si se proporcionó (el campo se llama vigencia_documento)
+            if ($request->has('fecha_vencimiento') && $request->fecha_vencimiento) {
+                $informacion->vigencia_documento = $request->fecha_vencimiento;
+            }
+
+            // Actualizar el empleado que modifica y la fecha de actualización
+            $informacion->empleado_actualiza_id = $user->ID_Empleado ?? null;
+            $informacion->actualizado_en = now();
+
+            // Guardar cambios
+            $informacion->save();
+
+            // Si es una petición AJAX/Inertia, devolver JSON
+            if ($request->expectsJson() || $request->header('X-Inertia')) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Documento actualizado correctamente',
+                    'documento' => [
+                        'id' => $informacion->id,
+                        'estado' => $informacion->estado,
+                        'fecha_vencimiento' => $informacion->vigencia_documento,
+                        'usuario_actualizo' => $user->Usuario ?? 'Sistema',
+                        'actualizado_en' => $informacion->actualizado_en->format('Y-m-d H:i:s')
+                    ]
+                ]);
+            }
+
+            return back()->with('success', 'Documento actualizado correctamente');
+
+        } catch (\Exception $e) {
+            Log::error('=== ERROR en actualizarDocumento ===', [
+                'documento_id' => $documentoId,
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            if ($request->expectsJson() || $request->header('X-Inertia')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error al actualizar el documento: ' . $e->getMessage()
+                ], 500);
+            }
+
+            return back()->with('error', 'Error al actualizar el documento: ' . $e->getMessage());
+        }
+    }
+
+    // Método temporal para debug de Cd. Acuña
+    public function debugCdAcuna()
+    {
+        // Obtener el campus Cd. Acuña de la base de datos directamente
+        $campus = campus_model::where('Campus', 'LIKE', '%Acuña%')->first();
+
+        if (!$campus) {
+            return response()->json(['error' => 'Campus Cd. Acuña no encontrado en BD']);
+        }
+
+        // También obtener el ID desde el stored procedure
+        $empleadoId = \Illuminate\Support\Facades\Auth::user()->id_empleado ?? 1;
+        $resultados = DB::select('EXEC sug_reporte_estatus_documentos @ID_Empleado = ?, @Todos = 1', [$empleadoId]);
+
+        $campusDelSP = null;
+        foreach ($resultados as $fila) {
+            if (strpos($fila->Campus, 'Acuña') !== false) {
+                $campusDelSP = $fila;
+                break;
+            }
+        }
+
+        $campusIdDirecto = (string) $campus->ID_Campus;
+        $campusIdDelSP = $campusDelSP ? (string) $campusDelSP->campus_id : 'No encontrado';
+
+        $hashDirecto = $this->generateCampusHash($campus->Campus, $campusIdDirecto);
+        $hashDelSP = $campusDelSP ? $this->generateCampusHash($campusDelSP->Campus, $campusIdDelSP) : 'N/A';
+
+        return response()->json([
+            'campus_directo_bd' => $campus->Campus,
+            'id_directo_bd' => $campus->ID_Campus,
+            'id_directo_string' => $campusIdDirecto,
+            'hash_directo' => $hashDirecto,
+
+            'campus_del_sp' => $campusDelSP ? $campusDelSP->Campus : 'No encontrado',
+            'id_del_sp' => $campusDelSP ? $campusDelSP->campus_id : 'No encontrado',
+            'id_del_sp_string' => $campusIdDelSP,
+            'hash_del_sp' => $hashDelSP,
+
+            'hash_esperado_frontend' => '44e1867c',
+            'coincide_directo' => $hashDirecto === '44e1867c' ? 'SI' : 'NO',
+            'coincide_sp' => $hashDelSP === '44e1867c' ? 'SI' : 'NO'
+        ]);
     }
 }

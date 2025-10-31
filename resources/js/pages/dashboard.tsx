@@ -105,7 +105,7 @@ export default function Dashboard() {
 
     // Verificar roles específicos
     const isRole13or14 = userRoles.some(role => role === '13' || role === '14');
-    const isRole16 = userRoles.some(role => role === '16');
+    const isRole16 =    userRoles.some(role => role === '16'  || role === '20');
 
     // Cargar estadísticas del dashboard
     useEffect(() => {
@@ -114,7 +114,14 @@ export default function Dashboard() {
                 setLoading(true);
                 setError(null);
 
-                const response = await fetch('/api/dashboard/estadisticas');
+                // Agregar timestamp para evitar caché del navegador
+                const timestamp = new Date().getTime();
+                const response = await fetch(`/api/dashboard/estadisticas?_t=${timestamp}`, {
+                    headers: {
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
+                    }
+                });
 
                 if (!response.ok) {
                     throw new Error('Error al cargar estadísticas');
@@ -122,6 +129,13 @@ export default function Dashboard() {
 
                 const data = await response.json();
 
+        /*         console.log('📊 Datos recibidos del backend:', {
+                    tipo_usuario: data.tipo_usuario,
+                    estadisticas: data.estadisticas,
+                    timestamp: data._debug_timestamp,
+                    metodo_usado: data.metodo_usado
+                });
+ */
                 // Mapear datos del backend (fiscales) al frontend (legales)
                 const dataMapeada = {
                     ...data,
@@ -519,7 +533,9 @@ export default function Dashboard() {
                                         </div>
 
                                         <div className="grid gap-6 lg:grid-cols-1 xl:grid-cols-2">
-                                            {dashboardData.estadisticas_por_campus.map((campus) => (
+                                            {[...dashboardData.estadisticas_por_campus]
+                                                .sort((a, b) => a.campus_nombre.localeCompare(b.campus_nombre))
+                                                .map((campus) => (
                                                 <Card key={campus.campus_id} className="border-l-4 border-l-indigo-500 dark:border-l-indigo-400 hover:shadow-lg transition-shadow dark:bg-gray-800 dark:border-gray-700">
                                                     <CardHeader className="pb-3">
                                                         <div className="flex items-center justify-between">

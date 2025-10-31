@@ -22,6 +22,7 @@ import {
     documentosAprobados: number;
     documentosPendientes: number;
     documentosRechazados: number;
+    documentosCaducados: number; // Agregar caducados
     usuariosActivos: number;
     campusConectados: number;
 }
@@ -39,6 +40,12 @@ interface DatosSemaforo {
     id_campus: string;
     uniqueKey?: string; // Añadir clave única opcional
     campusHash?: string; // Añadir hash del campus
+    // Campos del backend
+    total_vigentes?: number;
+    total_aprobados?: number;
+    total_caducados?: number;
+    campus_id?: number;
+    campus_nombre?: string;
 }
 
 interface TendenciaMensual {
@@ -64,17 +71,19 @@ const generateCampusHash = (campusName: string, campusId: string): string => {
     const id = String(campusId);
 
     const input = `${name}-${id}`;
+
     let hash = 0;
     for (let i = 0; i < input.length; i++) {
         const char = input.charCodeAt(i);
         hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
+        hash = hash & 0xFFFFFFFF; // Convert to 32-bit integer
     }
-    const result = Math.abs(hash).toString(16).substring(0, 8);
+    const result = Math.abs(hash).toString(16);
 
-    console.log(`🔗 generateCampusHash: "${input}" → ${result}`);
+    // Asegurar que siempre tenga 8 caracteres
+    const finalHash = result.padStart(8, '0').substring(0, 8);
 
-    return result;
+    return finalHash;
 };
 
 // Datos de ejemplo para el gráfico de pie (se mantienen para la visualización)
@@ -196,9 +205,90 @@ export default function SupervisionDashboard({
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const procesarDatosSemaforo = (campusData: any[]) => {
+        if (!campusData || !Array.isArray(campusData)) {
+            return [];
+        }
+
+        // PRIMERO: Filtrar duplicados ANTES de procesar
+        const campusUnicos = campusData.filter((campus, index, array) => {
+            const id = String(campus.campus_id || campus.id);
+            const nombre = campus.campus_nombre || campus.nombre;
+
+            // Buscar la primera ocurrencia con el mismo ID Y nombre
+            return array.findIndex(c => {
+                const cId = String(c.campus_id || c.id);
+                const cNombre = c.campus_nombre || c.nombre;
+                return cId === id && cNombre === nombre;
+            }) === index;
+        });
+
+        if (campusData.length !== campusUnicos.length) {
+        }
+
+                // SEGUNDO: Procesar los datos únicos - usar hash del backend
+        const resultados = campusUnicos.map((campus: any, index: number) => {
+            globalKeyCounter++; // Incrementar contador global
+            const campusId = String(campus.campus_id || campus.id || 'unknown');
+            const campusIdFormatted = campusId.padStart(2, '0'); // Formato "01", "02", etc.
+            const campusNombre = campus.campus_nombre || campus.nombre || 'Campus desconocido';
+            const uniqueKey = `campus-${globalKeyCounter}-${campusIdFormatted}`;
+
+            // USAR HASH DEL BACKEND si está disponible y es válido, sino generarlo
+            let campusHash = campus.campus_hash;
+
+            // Validar que el hash del backend sea válido (8 caracteres)
+            if (!campusHash || campusHash.length < 8) {
+                // Usar campusIdFormatted (con padding) para generar el hash
+                campusHash = generateCampusHash(campusNombre, campusIdFormatted);
+            }
+
+            const cumplimiento = campus.porcentaje_cumplimiento || campus.cumplimiento || 0;
+            let estado: 'excelente' | 'bueno' | 'advertencia' | 'critico' = 'critico';
+
+            if (cumplimiento >= 90) estado = 'excelente';
+            else if (cumplimiento >= 80) estado = 'bueno';
+            else if (cumplimiento >= 70) estado = 'advertencia';
+
+            // Asegurar que los valores sean enteros
+            const vigentes = parseInt(campus.total_vigentes ?? campus.total_aprobados ?? 0) || 0;
+            const caducados = parseInt(campus.total_caducados ?? 0) || 0;
+
+            // Documentos cumplidos = vigentes + caducados
+            const documentosCumplidos = vigentes + caducados;
+
+            return {
+                campus: campusNombre,
+                estado,
+                cumplimiento,
+                documentosTotal: parseInt(campus.total_documentos ?? campus.documentosTotal ?? campus.documentos_total ?? 0) || 0,
+                documentosVigentes: vigentes,
+                documentosCaducados: caducados,
+                documentosCumplidos: documentosCumplidos, // Nuevo campo: vigentes + caducados
+                documentosVencidos: Math.max(0, (parseInt(campus.total_documentos ?? campus.documentosTotal ?? campus.documentosVencidos ?? 0) || 0) - documentosCumplidos), // Usar cumplidos en lugar de solo vigentes
+                usuariosActivos: parseInt(campus.usuarios_activos ?? campus.usuariosActivos ?? 1) || 1,
+                id_campus: campusIdFormatted, // Usar ID formateado
+                campusHash, // Usar hash del backend o generado
+                uniqueKey // Añadir la clave única al objeto
+            };
+        });
+
+        return resultados;
+    };
+
+    // Procesar datos iniciales del servidor si no están procesados
+    const datosSemaforoIniciales = useMemo(() => {
+        // Si los datos iniciales ya tienen documentosVigentes, están procesados
+        if (initialSemaforo.length > 0 && initialSemaforo[0].documentosVigentes !== undefined) {
+            return initialSemaforo;
+        }
+        // Si no, procesarlos como si vinieran del API
+        return procesarDatosSemaforo(initialSemaforo);
+    }, []);
+
     // Usar datos iniciales del servidor como fallback
     const [estadisticasGenerales, setEstadisticasGenerales] = useState(initialEstadisticas);
-    const [datosSemaforo, setDatosSemaforo] = useState(initialSemaforo);
+    const [datosSemaforo, setDatosSemaforo] = useState(datosSemaforoIniciales);
     const [tendenciasMensuales, setTendenciasMensuales] = useState(initialTendencias);
 
     // Calcular distribución en tiempo real
@@ -248,7 +338,6 @@ export default function SupervisionDashboard({
                 }
 
                 const data = await response.json();
-                console.log('📊 Datos de supervisión recibidos:', data);
 
                 setDashboardData(data);
 
@@ -262,7 +351,6 @@ export default function SupervisionDashboard({
                     setDatosSemaforo(semaforoSupervision);
                 }                setError(null);
             } catch (err) {
-                console.error('❌ Error cargando datos de supervisión:', err);
                 setError('Error al cargar datos de supervisión');
                 // Mantener datos iniciales del servidor
             } finally {
@@ -278,20 +366,34 @@ export default function SupervisionDashboard({
     }, []);
 
     const procesarEstadisticasSupervision = (data: any) => {
-        // Manejar ambas estructuras: la anterior y la nueva del SupervisionController
-        if (data.estadisticas_por_campus && Array.isArray(data.estadisticas_por_campus)) {
-            // Nueva estructura del SupervisionController
-            const totalDocumentos = data.estadisticas_por_campus.reduce((total: number, campus: any) =>
-                total + (campus.total_documentos || 0), 0);
+        // PRIORIDAD 1: Usar totales_por_tipo del SP si están disponibles (más preciso)
+        if (data.totales_por_tipo && (data.totales_por_tipo.FISCAL || data.totales_por_tipo.MEDICINA)) {
+            const fiscal = data.totales_por_tipo.FISCAL || { Vigentes: 0, Caducados: 0, Rechazados: 0, Pendientes: 0, Total: 0 };
+            const medicina = data.totales_por_tipo.MEDICINA || { Vigentes: 0, Caducados: 0, Rechazados: 0, Pendientes: 0, Total: 0 };
 
-            const totalAprobados = data.estadisticas_por_campus.reduce((total: number, campus: any) =>
+            return {
+                totalDocumentos: fiscal.Total + medicina.Total,
+                documentosAprobados: fiscal.Vigentes + medicina.Vigentes,
+                documentosPendientes: fiscal.Pendientes + medicina.Pendientes,
+                documentosRechazados: fiscal.Rechazados + medicina.Rechazados,
+                documentosCaducados: fiscal.Caducados + medicina.Caducados,
+                usuariosActivos: data.estadisticas_generales?.usuarios_activos || 0,
+                campusConectados: data.estadisticas_por_campus?.length || 0,
+            };
+        }
+
+
+        // PRIORIDAD 2: Manejar estructura con estadisticas_por_campus
+        if (data.estadisticas_por_campus && Array.isArray(data.estadisticas_por_campus)) {
+            const totalDocumentos = data.estadisticas_por_campus.reduce((total: number, campus: any) =>
+                total + (campus.total_documentos || 0), 0);            const totalAprobados = data.estadisticas_por_campus.reduce((total: number, campus: any) =>
                 total + (campus.total_aprobados || 0), 0);
 
             const totalCaducados = data.estadisticas_por_campus.reduce((total: number, campus: any) =>
                 total + (campus.total_caducados || 0), 0);
 
             const totalRechazados = data.estadisticas_por_campus.reduce((total: number, campus: any) =>
-                total + ((campus.legales?.rechazados || 0) + (campus.medicos?.rechazados || 0)), 0);
+                total + (campus.total_rechazados || 0), 0);
 
             // Calcular pendientes correctamente: Total - Vigentes - Caducados - Rechazados
             const totalPendientes = Math.max(0, totalDocumentos - totalAprobados - totalCaducados - totalRechazados);
@@ -301,105 +403,34 @@ export default function SupervisionDashboard({
                 documentosAprobados: totalAprobados,
                 documentosPendientes: totalPendientes,
                 documentosRechazados: totalRechazados,
+                documentosCaducados: totalCaducados,
                 usuariosActivos: data.estadisticas?.usuarios_activos || 0,
                 campusConectados: data.estadisticas_por_campus.length,
             };
-        } else {
-            // Estructura anterior (fallback)
-            const estadisticas = data.estadisticas || {};
-            const legales = data.estadisticas_legales || data.estadisticas_fiscales || {};
-            const medicos = data.estadisticas_medicos || {};
-
-            const totalDocumentos = (legales.total_documentos || legales.total || 0) + (medicos.total_documentos || medicos.total || 0);
-            const totalAprobados = (legales.aprobados || 0) + (medicos.aprobados || 0);
-            const totalCaducados = (legales.caducados || 0) + (medicos.caducados || 0);
-            const totalRechazados = (legales.rechazados || 0) + (medicos.rechazados || 0);
-
-            // Calcular pendientes correctamente: Total - Vigentes - Caducados - Rechazados
-            const totalPendientes = Math.max(0, totalDocumentos - totalAprobados - totalCaducados - totalRechazados);
-
-            return {
-                totalDocumentos,
-                documentosAprobados: totalAprobados,
-                documentosPendientes: totalPendientes,
-                documentosRechazados: totalRechazados,
-                usuariosActivos: estadisticas.usuarios_activos || 0,
-                campusConectados: estadisticas.total_campus || 0,
-            };
-        }
-    };    const procesarDatosSemaforo = (campusData: any[]) => {
-        if (!campusData || !Array.isArray(campusData)) {
-            return [];
         }
 
-        // PRIMERO: Filtrar duplicados ANTES de procesar
-        const campusUnicos = campusData.filter((campus, index, array) => {
-            const id = String(campus.campus_id || campus.id);
-            const nombre = campus.campus_nombre || campus.nombre;
+        // FALLBACK: Estructura anterior (compatibilidad)
+        const estadisticas = data.estadisticas || {};
+        const legales = data.estadisticas_legales || data.estadisticas_fiscales || {};
+        const medicos = data.estadisticas_medicos || {};
 
-            // Buscar la primera ocurrencia con el mismo ID Y nombre
-            return array.findIndex(c => {
-                const cId = String(c.campus_id || c.id);
-                const cNombre = c.campus_nombre || c.nombre;
-                return cId === id && cNombre === nombre;
-            }) === index;
-        });
+        const totalDocumentos = (legales.total_documentos || legales.total || 0) + (medicos.total_documentos || medicos.total || 0);
+        const totalAprobados = (legales.aprobados || 0) + (medicos.aprobados || 0);
+        const totalCaducados = (legales.caducados || 0) + (medicos.caducados || 0);
+        const totalRechazados = (legales.rechazados || 0) + (medicos.rechazados || 0);
 
-        console.log('� Campus procesados:', campusData.length, '→ Campus únicos:', campusUnicos.length);
+        // Calcular pendientes correctamente: Total - Vigentes - Caducados - Rechazados
+        const totalPendientes = Math.max(0, totalDocumentos - totalAprobados - totalCaducados - totalRechazados);
 
-        if (campusData.length !== campusUnicos.length) {
-            console.warn(`⚠️ Se eliminaron ${campusData.length - campusUnicos.length} campus duplicados`);
-        }
-
-        // SEGUNDO: Procesar los datos únicos - usar hash del backend
-        const resultados = campusUnicos.map((campus: any, index: number) => {
-            globalKeyCounter++; // Incrementar contador global
-            const campusId = String(campus.campus_id || campus.id || 'unknown');
-            const campusIdFormatted = campusId.padStart(2, '0'); // Formato "01", "02", etc.
-            const campusNombre = campus.campus_nombre || campus.nombre || 'Campus desconocido';
-            const uniqueKey = `campus-${globalKeyCounter}-${campusIdFormatted}`;
-
-            // USAR HASH DEL BACKEND si está disponible, sino generarlo
-            const campusHash = campus.campus_hash || generateCampusHash(campusNombre, campusId);
-
-            // Debug: Verificar que el hash se obtiene correctamente
-            console.log(`🔗 Campus: ${campusNombre} (ID: ${campusId}) → Hash: ${campusHash} (${campus.campus_hash ? 'del backend' : 'generado localmente'})`);
-
-            const cumplimiento = campus.porcentaje_cumplimiento || campus.cumplimiento || 0;
-            let estado: 'excelente' | 'bueno' | 'advertencia' | 'critico' = 'critico';
-
-            if (cumplimiento >= 90) estado = 'excelente';
-            else if (cumplimiento >= 80) estado = 'bueno';
-            else if (cumplimiento >= 70) estado = 'advertencia';
-
-            const vigentes = campus.total_vigentes || campus.total_aprobados || 0;
-            const caducados = campus.total_caducados || 0;
-            // Documentos cumplidos = vigentes + caducados
-            const documentosCumplidos = vigentes + caducados;
-
-            return {
-                campus: campusNombre,
-                estado,
-                cumplimiento,
-                documentosTotal: campus.total_documentos || campus.documentos_total || 0,
-                documentosVigentes: vigentes,
-                documentosCaducados: caducados,
-                documentosCumplidos: documentosCumplidos, // Nuevo campo: vigentes + caducados
-                documentosVencidos: Math.max(0, (campus.total_documentos || 0) - documentosCumplidos), // Usar cumplidos en lugar de solo vigentes
-                usuariosActivos: campus.usuarios_activos || 1,
-                id_campus: campusIdFormatted, // Usar ID formateado
-                campusHash, // Usar hash del backend o generado
-                uniqueKey // Añadir la clave única al objeto
-            };
-        });
-
-        console.log(`📊 Datos del semáforo procesados:`, resultados.map(r => ({
-            campus: r.campus,
-            id: r.id_campus,
-            hash: r.campusHash
-        })));
-
-        return resultados;
+        return {
+            totalDocumentos,
+            documentosAprobados: totalAprobados,
+            documentosPendientes: totalPendientes,
+            documentosRechazados: totalRechazados,
+            documentosCaducados: totalCaducados,
+            usuariosActivos: estadisticas.usuarios_activos || 0,
+            campusConectados: estadisticas.total_campus || 0,
+        };
     };
 
     // Memorizar los datos del semáforo para evitar re-procesamiento
@@ -477,7 +508,7 @@ export default function SupervisionDashboard({
                                         <div>
                                             <p className="text-sm font-medium">Vigentes</p>
                                             <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
-                                                {(dashboardData as any)?.documentosVigentes || estadisticasGenerales.documentosAprobados}
+                                                {estadisticasGenerales.documentosAprobados}
                                             </p>
                                         </div>
                                     </div>
@@ -501,7 +532,7 @@ export default function SupervisionDashboard({
                                         <div>
                                             <p className="text-sm font-medium">Caducados</p>
                                             <p className="text-2xl font-bold text-orange-700 dark:text-orange-300">
-                                                {(dashboardData as any)?.documentosCaducados || 0}
+                                                {estadisticasGenerales.documentosCaducados}
                                             </p>
                                         </div>
                                     </div>
@@ -567,17 +598,13 @@ export default function SupervisionDashboard({
                                         className="block"
                                         onClick={(e) => {
                                             const hash = (campus as any).campusHash;
-                                            console.log(`🔗 Navegando a campus ${campus.campus} con hash: ${hash}`);
 
                                             // Verificar que el hash sea válido
-                                            if (!hash || hash === 'unknown') {
+                                            if (!hash || hash === 'unknown' || hash.length < 8) {
                                                 e.preventDefault();
-                                                console.error('❌ Hash inválido para campus:', campus);
-                                                alert(`Error: No se pudo generar hash para ${campus.campus}`);
+                                                alert(`Error: No se pudo generar hash válido para ${campus.campus}`);
                                                 return;
                                             }
-
-                                            console.log(`✅ Navegando a URL: /supervision/${hash}`);
                                         }}
                                     >
                                         <div

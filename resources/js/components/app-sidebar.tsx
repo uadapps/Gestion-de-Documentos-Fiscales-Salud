@@ -34,15 +34,15 @@ export function AppSidebar() {
 
     // Verificar roles específicos
     const isRole13or14 = userRoles.some(role => role === '13' || role === '14');
-    const isRole16 = userRoles.some(role => role === '16');
-
+    const isRole16 = userRoles.some(role => role === '16' );
+    const isRole20 = userRoles.some(role => role === '20');
     // Construir menú dinámicamente según el rol
     const mainNavItems: NavItem[] = [
-        {
+        ...(!isRole20 ? [{
             title: 'Dashboard',
             href: dashboard(),
             icon: LayoutGrid,
-        },
+        }] : []),
         // Opciones para roles 13 y 14 (gestión de documentos)
         ...(isRole13or14 ? [
             {
@@ -52,7 +52,7 @@ export function AppSidebar() {
             },
         ] : []),
         // Opción para rol 16 (supervisión)
-        ...(isRole16 ? [
+        ...(isRole16  || isRole20 ? [
             {
                 title: 'Semáforo',
                 href: '/supervision',

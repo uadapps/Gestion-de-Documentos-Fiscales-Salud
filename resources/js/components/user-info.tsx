@@ -2,6 +2,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useInitials } from '@/hooks/use-initials';
 import { type User } from '@/types';
 import { usePage } from '@inertiajs/react';
+import { useMemo } from 'react';
 
 export function UserInfo({
     user,
@@ -19,10 +20,12 @@ export function UserInfo({
                        (user as any).Usuario ||
                        'Usuario';
 
-    // Agregar parámetro único para evitar caché de imagen
+    // Memorizar timestamp para evitar recarga de imagen en cada render
     const userId = user.id || (user as any).ID_Usuario || 'unknown';
-    const timestamp = Date.now();
-    const avatarSrc = `/api/user/photo?user=${userId}&t=${timestamp}`;
+    const avatarSrc = useMemo(() => {
+        const timestamp = Date.now();
+        return `/api/user/photo?user=${userId}&t=${timestamp}`;
+    }, [userId]); // Solo cambia cuando cambia el userId
 
     return (
         <>
