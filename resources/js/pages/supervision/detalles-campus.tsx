@@ -142,6 +142,7 @@ export default function DetallesCampus() {
     const isRole20 = userRoles.some((role: any) => role === '20' || role === 20);
     const isRole16 = userRoles.some((role: any) => role === '16' || role === 16);
     const canManageObservaciones = isRole20 || isRole16; // Rol 20 o 16 pueden gestionar observaciones
+    const canEditDocuments = isRole20; // Solo rol 20 puede editar estado y vigencia
 
     // Usar las estadísticas del SP si están disponibles, si no calcular localmente
     const totalDocumentosReales = estadisticas_sp?.total_general?.Total
@@ -719,7 +720,7 @@ export default function DetallesCampus() {
                                                                         </div>
                                                                     </td>
                                                                     <td className="px-6 py-4">
-                                                                        {canManageObservaciones ? (
+                                                                        {canEditDocuments ? (
                                                                             <Select
                                                                                 value={editingDocuments[documentoPrincipal.sdi_id || documentoPrincipal.id]?.estado || documentoPrincipal.estado}
                                                                                 onValueChange={(value) => handleEstadoChange(documentoPrincipal.sdi_id || documentoPrincipal.id, value, documentoPrincipal.fecha_vencimiento || undefined)}
@@ -740,7 +741,7 @@ export default function DetallesCampus() {
                                                                     </td>
                                                                     <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                                                                         <div className="flex flex-col space-y-1">
-                                                                            {canManageObservaciones ? (
+                                                                            {canEditDocuments ? (
                                                                                 <Input
                                                                                     type="date"
                                                                                     value={editingDocuments[documentoPrincipal.sdi_id || documentoPrincipal.id]?.fecha_vencimiento || documentoPrincipal.fecha_vencimiento || ''}
@@ -766,7 +767,7 @@ export default function DetallesCampus() {
                                                                     </td>
                                                                     <td className="px-6 py-4 text-right">
                                                                         <div className="flex justify-end items-center space-x-2">
-                                                                            {canManageObservaciones && hasChanges(documentoPrincipal.sdi_id || documentoPrincipal.id) && !successDocuments[documentoPrincipal.sdi_id || documentoPrincipal.id] && (
+                                                                            {canEditDocuments && hasChanges(documentoPrincipal.sdi_id || documentoPrincipal.id) && !successDocuments[documentoPrincipal.sdi_id || documentoPrincipal.id] && (
                                                                                 <Button
                                                                                     variant="default"
                                                                                     size="sm"
