@@ -395,6 +395,7 @@ class DocumentoController extends Controller
                             'validacionIA' => $validacionIA,
                             // 🎯 Información de la BD (fuente de verdad - siempre priorizar sobre IA)
                             'metadata' => [
+                                'documento_informacion_id' => $informacion->id, // 🔧 ID para observaciones
                                 'folio_documento' => $informacion->folio_documento,
                                 'fecha_expedicion' => $informacion->fecha_expedicion,
                                 'vigencia_documento' => $informacion->vigencia_documento,

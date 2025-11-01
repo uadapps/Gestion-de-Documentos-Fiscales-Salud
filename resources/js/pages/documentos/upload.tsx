@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import ObservacionesModal from '@/components/ObservacionesModal';
 import { csrfFetch } from '@/lib/csrf';
+import { type SharedData } from '@/types';
 import {
     Upload,
     FileText,
@@ -25,7 +27,8 @@ import {
     Search,
     Filter,
     Brain,
-    Loader2
+    Loader2,
+    MessageSquare
 } from 'lucide-react';
 
 interface Campus {
@@ -83,6 +86,7 @@ interface ArchivoSubido {
         lugar_expedicion?: string;
         // 🔧 Estado real de la tabla de BD (no del JSON)
         estado_bd?: string;
+        documento_informacion_id?: number; // ID de la tabla sug_documentos_informacion
     };
 }
 
@@ -423,6 +427,15 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
     //     });
     // }
 
+    // Obtener información del usuario autenticado y sus roles
+    const { auth } = usePage<SharedData>().props;
+    const user = auth?.user;
+    const roles = (user as any)?.roles || [];
+    const userRoles = Array.isArray(roles) ? roles.map((role: any) =>
+        role.rol || role.ID_Rol || role.nombre
+    ) : [];
+    const isRole14or16 = userRoles.some((role: any) => role === '14' || role === 14 || role === '16' || role === 16);
+
     const [campusActual, setCampusActual] = useState<Campus | null>(campusInicial);
 
     // Asegurar que cada documento tenga el campo archivos
@@ -446,6 +459,13 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const [busqueda, setBusqueda] = useState<string>('');
 
+    // Estados para observaciones
+    const [observacionesModalOpen, setObservacionesModalOpen] = useState(false);
+    const [selectedDocumentoIdObservaciones, setSelectedDocumentoIdObservaciones] = useState<number | null>(null);
+    const [selectedDocumentoNombreObservaciones, setSelectedDocumentoNombreObservaciones] = useState<string>('');
+    const [observacionesPendientesPorDocumento, setObservacionesPendientesPorDocumento] = useState<{ [key: number]: number }>({});
+    const [isGlobalCommentModal, setIsGlobalCommentModal] = useState(false);
+    const [observacionesPendientesCampus, setObservacionesPendientesCampus] = useState(0);
     // Estados para el loader
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
@@ -457,6 +477,9 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
     const [recentlyUploadedFiles, setRecentlyUploadedFiles] = useState<Set<string>>(new Set());
     const [showSuccessNotification, setShowSuccessNotification] = useState(false);
     const [notificationMessage, setNotificationMessage] = useState('');
+
+    // Estado para evitar que se sobrescriba el campus cuando viene de notificación
+    const [campusFromNotification, setCampusFromNotification] = useState(false);
 
     // Estado para carga unificada de documentos
     const [cargandoDocumentosCompleto, setCargandoDocumentosCompleto] = useState(false);
@@ -501,9 +524,37 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
         }
 
         if (campusInicial) {
-            setCampusActual(campusInicial);
+            if (!campusFromNotification) {
+                setCampusActual(campusInicial);
+            }
         }
-    }, [documentosIniciales, campusInicial]);
+    }, [documentosIniciales, campusInicial, campusFromNotification]);
+
+    // 🔔 Detectar campus_id de la URL (cuando viene de notificaciones)
+    useEffect(() => {
+        const campusIdFromSession = sessionStorage.getItem('campus_from_notification');
+
+        if (campusIdFromSession && campusDelDirector) {
+            const campusEncontrado = campusDelDirector.find(c => c.ID_Campus === campusIdFromSession);
+            if (campusEncontrado) {
+                console.log('🔔 Campus desde notificación:', campusEncontrado);
+
+                // Cambiar el campus actual inmediatamente
+                setCampusFromNotification(true);
+                handleCampusChange(campusEncontrado.ID_Campus);
+
+                // Si el campus es diferente al que viene en las props, hacer reload
+                if (false) {
+                    console.log('� Recargando página con nuevo campus...');
+                    // Usar router.reload con data para que el backend cargue los documentos correctos
+                    router.visit('/documentos/upload');
+                }
+
+                sessionStorage.removeItem('campus_from_notification');
+                sessionStorage.removeItem('highlight_doc_from_notification');
+            }
+        }
+    }, []);
 
     // Helper para obtener la clave correcta para selectedFiles
     const getDocumentKey = (documento: DocumentoRequerido) => {
@@ -547,6 +598,78 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
         return true;
     };
 
+    // Funciones para manejo de observaciones
+    const cargarConteoObservaciones = async () => {
+        if (!campusActual) return;
+
+        try {
+            // Obtener TODAS las observaciones del campus (generales y de documentos)
+            const response = await fetch(`/observaciones/campus/${campusActual.ID_Campus}/todas`, {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.observaciones) {
+                // Contar observaciones pendientes por documento_informacion_id
+                const conteo: { [key: number]: number } = {};
+                let conteoGlobal = 0;
+
+                data.observaciones.forEach((obs: any) => {
+                    if (obs.estatus === 'pendiente') {
+                        if (obs.documento_informacion_id) {
+                            // Observación de documento específico
+                            conteo[obs.documento_informacion_id] = (conteo[obs.documento_informacion_id] || 0) + 1;
+                        } else {
+                            // Observación general del campus (documento_informacion_id es NULL)
+                            conteoGlobal++;
+                        }
+                    }
+                });
+
+                setObservacionesPendientesPorDocumento(conteo);
+                setObservacionesPendientesCampus(conteoGlobal);
+            }
+        } catch (err) {
+            console.error('Error al cargar conteo de observaciones:', err);
+        }
+    };
+
+    const handleOpenObservaciones = (documentoInformacionId: number, documentoNombre: string) => {
+        setSelectedDocumentoIdObservaciones(documentoInformacionId);
+        setSelectedDocumentoNombreObservaciones(documentoNombre);
+        setIsGlobalCommentModal(false);
+        setObservacionesModalOpen(true);
+    };
+
+    const handleOpenObservacionesGlobales = () => {
+        setSelectedDocumentoIdObservaciones(null);
+        setSelectedDocumentoNombreObservaciones('');
+        setIsGlobalCommentModal(true);
+        setObservacionesModalOpen(true);
+    };
+
+    const handleCloseObservaciones = () => {
+        setObservacionesModalOpen(false);
+        setSelectedDocumentoIdObservaciones(null);
+        setSelectedDocumentoNombreObservaciones('');
+        setIsGlobalCommentModal(false);
+        // Recargar el conteo de observaciones al cerrar el modal
+        cargarConteoObservaciones();
+        // Disparar evento para que el sidebar actualice las notificaciones
+        window.dispatchEvent(new Event('observaciones-updated'));
+    };
+
+    // Cargar conteo de observaciones solo en la primera carga del campus (no en cada cambio de documentos)
+    useEffect(() => {
+        if (campusActual) {
+            cargarConteoObservaciones();
+        }
+    }, [campusActual?.ID_Campus]);
+
     // 🔄 FUNCIÓN PARA ACTUALIZAR DATOS DESDE EL SERVIDOR
     const refrescarDocumentosDesdeServidor = async () => {
         if (!campusActual) {
@@ -588,16 +711,48 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
             setCargandoDocumentosCompleto(true);
             setDocumentosListosParaMostrar(false);
 
-            const response = await fetch(`/documentos/upload?campus=${campusActual.ID_Campus}`, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-                }
-            });
+            // Cargar documentos y observaciones en paralelo
+            const [responseDoc, responseObs] = await Promise.all([
+                fetch(`/documentos/upload?campus=${campusActual.ID_Campus}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                    }
+                }),
+                fetch(`/observaciones/campus/${campusActual.ID_Campus}/todas`, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    }
+                })
+            ]);
 
-            if (response.ok) {
-                const data = await response.json();
+            // Procesar observaciones primero para tener los badges listos
+            if (responseObs.ok) {
+                const dataObs = await responseObs.json();
+                if (dataObs.success && dataObs.observaciones) {
+                    const conteo: { [key: number]: number } = {};
+                    let conteoGlobal = 0;
+
+                    dataObs.observaciones.forEach((obs: any) => {
+                        if (obs.estatus === 'pendiente') {
+                            if (obs.documento_informacion_id) {
+                                conteo[obs.documento_informacion_id] = (conteo[obs.documento_informacion_id] || 0) + 1;
+                            } else {
+                                conteoGlobal++;
+                            }
+                        }
+                    });
+
+                    setObservacionesPendientesPorDocumento(conteo);
+                    setObservacionesPendientesCampus(conteoGlobal);
+                }
+            }
+
+            // Procesar documentos
+            if (responseDoc.ok) {
+                const data = await responseDoc.json();
                 // console.log('Respuesta del servidor (legales):', data);
 
                 if (data.props?.documentosRequeridos) {
@@ -633,7 +788,7 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
                     setDocumentosListosParaMostrar(true);
                 }
             } else {
-                console.error('Error al actualizar documentos legales:', response.status, response.statusText);
+                console.error('Error al actualizar documentos legales:', responseDoc.status, responseDoc.statusText);
                 setCargandoDocumentosCompleto(false);
                 setDocumentosListosParaMostrar(true);
             }
@@ -660,23 +815,53 @@ const DocumentUploadPage: React.FC<DocumentUploadPageProps> = ({
         setCargandoDocumentosMedicos(true);
 
         try {
-            // 🚀 NUEVA CONSULTA CON STORED PROCEDURE: Una sola petición usando SP optimizado
+            // 🚀 Cargar documentos médicos y observaciones en paralelo
             const tiempoInicio = Date.now();
             // console.log('🔄 Realizando consulta con stored procedure...');
 
-            const response = await fetch(`/documentos/medicos-con-sp?campus_id=${campusActual.ID_Campus}`, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-                }
-            });
+            const [responseDoc, responseObs] = await Promise.all([
+                fetch(`/documentos/medicos-con-sp?campus_id=${campusActual.ID_Campus}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                    }
+                }),
+                fetch(`/observaciones/campus/${campusActual.ID_Campus}/todas`, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    }
+                })
+            ]);
 
-            if (!response.ok) {
-                throw new Error(`Error en la respuesta: ${response.status}`);
+            // Procesar observaciones primero para tener los badges listos
+            if (responseObs.ok) {
+                const dataObs = await responseObs.json();
+                if (dataObs.success && dataObs.observaciones) {
+                    const conteo: { [key: number]: number } = {};
+                    let conteoGlobal = 0;
+
+                    dataObs.observaciones.forEach((obs: any) => {
+                        if (obs.estatus === 'pendiente') {
+                            if (obs.documento_informacion_id) {
+                                conteo[obs.documento_informacion_id] = (conteo[obs.documento_informacion_id] || 0) + 1;
+                            } else {
+                                conteoGlobal++;
+                            }
+                        }
+                    });
+
+                    setObservacionesPendientesPorDocumento(conteo);
+                    setObservacionesPendientesCampus(conteoGlobal);
+                }
             }
 
-            const data = await response.json();
+            if (!responseDoc.ok) {
+                throw new Error(`Error en la respuesta: ${responseDoc.status}`);
+            }
+
+            const data = await responseDoc.json();
             const tiempoTotal = Date.now() - tiempoInicio;
             // console.log(`⚡ Consulta con stored procedure completada en ${tiempoTotal}ms`);
             // console.log('Respuesta del stored procedure:', data);
@@ -2695,6 +2880,41 @@ const getEstadoRealDocumento = (documento: DocumentoRequerido): string => {
                     </div>
                 )}
 
+                {/* Tarjeta de Comentarios Generales del Campus */}
+                {campusActual && (
+                    <Card
+                        className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-blue-300 dark:hover:border-blue-700"
+                        onClick={handleOpenObservacionesGlobales}
+                    >
+                        <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center relative ${
+                                        observacionesPendientesCampus > 0
+                                            ? 'bg-gray-100 dark:bg-gray-800'
+                                            : 'bg-gray-100 dark:bg-gray-800'
+                                    }`}>
+                                        <MessageSquare className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                                        {observacionesPendientesCampus > 0 && (
+                                            <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center ring-2 ring-white dark:ring-gray-800">
+                                                {observacionesPendientesCampus}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                            Comentarios Generales del Campus
+                                        </p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                            Click para ver y gestionar
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
                 {/* Diseño de dos columnas - Solo si hay campus seleccionado */}
                 {campusActual && (
                     <>
@@ -2776,8 +2996,9 @@ const getEstadoRealDocumento = (documento: DocumentoRequerido): string => {
                                 <div className="lg:col-span-1">
                                     <Card className="h-fit">
                                         <CardHeader className="pb-4">
-                                            <div className="flex justify-between items-center">
+                                            <div className="flex justify-between items-center mb-3">
                                                 <CardTitle className="text-lg">Documentos Requeridos</CardTitle>
+
                                                 {/* Selector de Campus */}
                                                 {campusDelDirector && Array.isArray(campusDelDirector) && campusDelDirector.length > 0 && (
                                                     <div className="flex items-center gap-2">
@@ -2910,6 +3131,43 @@ const getEstadoRealDocumento = (documento: DocumentoRequerido): string => {
                                                                     {getEstadoIconDinamico(documento)}
                                                                     <span className="ml-1 capitalize text-xs">{getEstadoTextoDinamico(documento)}</span>
                                                                 </Badge>
+
+                                                                {/* Badge de observaciones - siempre visible */}
+                                                                {(() => {
+                                                                    const archivos = getArchivosSeguro(documento);
+                                                                    // Buscar el ID de diferentes formas posibles
+                                                                    const primerArchivo = archivos[0];
+                                                                    const docInfoId = primerArchivo?.metadata?.documento_informacion_id ||
+                                                                                     (primerArchivo as any)?.sdi_id ||
+                                                                                     (primerArchivo as any)?.documento_informacion_id ||
+                                                                                     // El ID del archivo podría ser el documento_informacion_id si viene directo del metadata
+                                                                                     (typeof primerArchivo?.id === 'number' ? primerArchivo.id : null);
+
+                                                                    const conteoObs = docInfoId ? observacionesPendientesPorDocumento[docInfoId] : 0;
+
+                                                                    // Solo mostrar si hay archivos (documento ya subido)
+                                                                    if (archivos.length > 0 && docInfoId) {
+                                                                        return (
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="sm"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    handleOpenObservaciones(docInfoId, documento.concepto);
+                                                                                }}
+                                                                                className="h-auto py-1 px-2 hover:bg-gray-100 dark:hover:bg-gray-700 relative"
+                                                                            >
+                                                                                <MessageSquare className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                                                                {conteoObs > 0 && (
+                                                                                    <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center ring-2 ring-white dark:ring-gray-800">
+                                                                                        {conteoObs}
+                                                                                    </span>
+                                                                                )}
+                                                                            </Button>
+                                                                        );
+                                                                    }
+                                                                    return null;
+                                                                })()}
                                                             </div>
 
                                                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -3438,6 +3696,18 @@ const getEstadoRealDocumento = (documento: DocumentoRequerido): string => {
                     </>
                 )}
             </div>
+
+            {/* Modal de Observaciones */}
+            <ObservacionesModal
+                isOpen={observacionesModalOpen}
+                onClose={handleCloseObservaciones}
+                documentoInformacionId={selectedDocumentoIdObservaciones}
+                campusId={campusActual?.ID_Campus || ''}
+                documentoNombre={selectedDocumentoNombreObservaciones}
+                isGlobalComment={isGlobalCommentModal}
+                readOnly={true}
+                canMarkAttended={isRole14or16}
+            />
         </AppLayout>
     );
 };

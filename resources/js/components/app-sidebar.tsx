@@ -1,5 +1,6 @@
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
+import { NavNotifications } from '@/components/nav-notifications';
 import {
     Sidebar,
     SidebarContent,
@@ -34,7 +35,7 @@ export function AppSidebar() {
 
     // Verificar roles específicos
     const isRole13or14 = userRoles.some(role => role === '13' || role === '14');
-    const isRole16 = userRoles.some(role => role === '16' );
+    const isRole16 = userRoles.some(role => role === '16');
     const isRole20 = userRoles.some(role => role === '20');
     // Construir menú dinámicamente según el rol
     const mainNavItems: NavItem[] = [
@@ -52,7 +53,7 @@ export function AppSidebar() {
             },
         ] : []),
         // Opción para rol 16 (supervisión)
-        ...(isRole16  || isRole20 ? [
+        ...(isRole16 || isRole20 ? [
             {
                 title: 'Semáforo',
                 href: '/supervision',
@@ -82,6 +83,7 @@ export function AppSidebar() {
             </SidebarContent>
 
             <SidebarFooter>
+                {isRole13or14 && <NavNotifications />}
                 <NavUser />
             </SidebarFooter>
         </Sidebar>
