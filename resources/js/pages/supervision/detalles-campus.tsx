@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { type BreadcrumbItem, type SharedData } from '@/types';
+import ObservacionesModal from '@/components/ObservacionesModal';
 import {
     FileText,
     Calendar,
@@ -19,7 +20,8 @@ import {
     Save,
     Loader2,
     ChevronDown,
-    ChevronRight
+    ChevronRight,
+    MessageSquare
 } from 'lucide-react';
 import {
     Select,
@@ -122,6 +124,15 @@ export default function DetallesCampus() {
     const [successDocuments, setSuccessDocuments] = useState<{ [key: number]: boolean }>({});
     const [expandedDocuments, setExpandedDocuments] = useState<{ [key: string]: boolean }>({});
 
+    // Estado para el modal de observaciones
+    const [observacionesModalOpen, setObservacionesModalOpen] = useState(false);
+    const [selectedDocumentoId, setSelectedDocumentoId] = useState<number | null>(null);
+    const [selectedDocumentoNombre, setSelectedDocumentoNombre] = useState<string>('');
+    const [selectedObservacionesSistema, setSelectedObservacionesSistema] = useState<string | null>(null);
+    const [selectedObservacionesArchivo, setSelectedObservacionesArchivo] = useState<string | null>(null);
+    const [isGlobalComment, setIsGlobalComment] = useState(false);
+    const [observacionesGeneralesPendientes, setObservacionesGeneralesPendientes] = useState<number>(0);
+
     // Obtener roles del usuario autenticado
     const user = auth?.user;
     const roles = (user as any)?.roles || [];
@@ -129,6 +140,8 @@ export default function DetallesCampus() {
         role.rol || role.ID_Rol || role.nombre
     ) : [];
     const isRole20 = userRoles.some((role: any) => role === '20' || role === 20);
+    const isRole16 = userRoles.some((role: any) => role === '16' || role === 16);
+    const canManageObservaciones = isRole20 || isRole16; // Rol 20 o 16 pueden gestionar observaciones
 
     // Usar las estadísticas del SP si están disponibles, si no calcular localmente
     const totalDocumentosReales = estadisticas_sp?.total_general?.Total
@@ -467,6 +480,54 @@ export default function DetallesCampus() {
         return editingDocuments[documentoId] !== undefined;
     };
 
+    // Cargar observaciones generales pendientes del campus
+    React.useEffect(() => {
+        if (campus?.ID_Campus) {
+            fetch(`/observaciones/${campus.ID_Campus}/generales/count`)
+                .then(res => res.json())
+                .then(data => {
+                    setObservacionesGeneralesPendientes(data.count || 0);
+                })
+                .catch(err => console.error('Error cargando count de observaciones generales:', err));
+        }
+    }, [campus?.ID_Campus]);
+
+    // Función para abrir modal de observaciones de documento
+    const handleOpenObservaciones = (documentoId: number, documentoNombre: string, observaciones?: string | null, observacionesArchivo?: string | null) => {
+        setSelectedDocumentoId(documentoId);
+        setSelectedDocumentoNombre(documentoNombre);
+        setSelectedObservacionesSistema(observaciones || null);
+        setSelectedObservacionesArchivo(observacionesArchivo || null);
+        setIsGlobalComment(false);
+        setObservacionesModalOpen(true);
+    };
+
+    // Función para abrir modal de observaciones generales del campus
+    const handleOpenObservacionesGlobales = () => {
+        setSelectedDocumentoId(null);
+        setSelectedDocumentoNombre('');
+        setIsGlobalComment(true);
+        setObservacionesModalOpen(true);
+    };
+
+    const handleCloseObservaciones = () => {
+        setObservacionesModalOpen(false);
+        setSelectedDocumentoId(null);
+        setSelectedDocumentoNombre('');
+        setSelectedObservacionesSistema(null);
+        setSelectedObservacionesArchivo(null);
+        setIsGlobalComment(false);
+        // Recargar el conteo de observaciones generales
+        if (campus?.ID_Campus) {
+            fetch(`/observaciones/${campus.ID_Campus}/generales/count`)
+                .then(res => res.json())
+                .then(data => {
+                    setObservacionesGeneralesPendientes(data.count || 0);
+                })
+                .catch(err => console.error('Error recargando count de observaciones generales:', err));
+        }
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbItems}>
             <Head title={`Campus ${campus?.Campus || 'Campus'} - Supervisión`} />
@@ -474,12 +535,31 @@ export default function DetallesCampus() {
             <div className="h-full w-full p-6 pl-8 pr-8 space-y-6">
                 {/* Campus Info - Header principal */}
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
-                    <div className="flex items-center space-x-4">
-                        <Building className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Campus {campus?.Campus || 'Campus'}</h1>
-                            <p className="text-gray-600 dark:text-gray-400">Supervisión de documentos</p>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                            <Building className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                            <div>
+                                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Campus {campus?.Campus || 'Campus'}</h1>
+                                <p className="text-gray-600 dark:text-gray-400">Supervisión de documentos</p>
+                            </div>
                         </div>
+                        {/* Botón de comentarios globales - Para rol 20 y 16 */}
+                        {canManageObservaciones && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleOpenObservacionesGlobales}
+                                className="h-10 w-10 p-0 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 relative transition-colors"
+                                title="Comentarios Generales del Campus"
+                            >
+                                <MessageSquare className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                                {observacionesGeneralesPendientes > 0 && (
+                                    <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-gradient-to-br from-red-500 to-red-600 text-white text-xs font-bold flex items-center justify-center ring-2 ring-white dark:ring-gray-800 shadow-lg">
+                                        {observacionesGeneralesPendientes}
+                                    </span>
+                                )}
+                            </Button>
+                        )}
                     </div>
                 </div>
 
@@ -593,7 +673,7 @@ export default function DetallesCampus() {
                                                     {(() => {
                                                         // Agrupar documentos por tipo
                                                         const gruposDocumentos = agruparDocumentosPorTipo(grupo.documentos);
-                                                        const filas: JSX.Element[] = [];
+                                                        const filas: React.ReactElement[] = [];
 
                                                         gruposDocumentos.forEach((docs, tipoDoc) => {
                                                             const expandKey = `${grupo.tipo}-${tipoDoc}`;
@@ -635,21 +715,11 @@ export default function DetallesCampus() {
                                                                                         {documentoPrincipal.carrera}
                                                                                     </p>
                                                                                 )}
-                                                                                {documentoPrincipal.observaciones && (
-                                                                                    <div className="mt-1 text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 px-2 py-1 rounded">
-                                                                                        <span className="font-medium">Observaciones:</span> {documentoPrincipal.observaciones}
-                                                                                    </div>
-                                                                                )}
-                                                                                {documentoPrincipal.observaciones_archivo && (
-                                                                                    <div className="mt-1 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded">
-                                                                                        <span className="font-medium">Obs. Archivo:</span> {documentoPrincipal.observaciones_archivo}
-                                                                                    </div>
-                                                                                )}
                                                                             </div>
                                                                         </div>
                                                                     </td>
                                                                     <td className="px-6 py-4">
-                                                                        {isRole20 ? (
+                                                                        {canManageObservaciones ? (
                                                                             <Select
                                                                                 value={editingDocuments[documentoPrincipal.sdi_id || documentoPrincipal.id]?.estado || documentoPrincipal.estado}
                                                                                 onValueChange={(value) => handleEstadoChange(documentoPrincipal.sdi_id || documentoPrincipal.id, value, documentoPrincipal.fecha_vencimiento || undefined)}
@@ -670,7 +740,7 @@ export default function DetallesCampus() {
                                                                     </td>
                                                                     <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                                                                         <div className="flex flex-col space-y-1">
-                                                                            {isRole20 ? (
+                                                                            {canManageObservaciones ? (
                                                                                 <Input
                                                                                     type="date"
                                                                                     value={editingDocuments[documentoPrincipal.sdi_id || documentoPrincipal.id]?.fecha_vencimiento || documentoPrincipal.fecha_vencimiento || ''}
@@ -696,7 +766,7 @@ export default function DetallesCampus() {
                                                                     </td>
                                                                     <td className="px-6 py-4 text-right">
                                                                         <div className="flex justify-end items-center space-x-2">
-                                                                            {isRole20 && hasChanges(documentoPrincipal.sdi_id || documentoPrincipal.id) && !successDocuments[documentoPrincipal.sdi_id || documentoPrincipal.id] && (
+                                                                            {canManageObservaciones && hasChanges(documentoPrincipal.sdi_id || documentoPrincipal.id) && !successDocuments[documentoPrincipal.sdi_id || documentoPrincipal.id] && (
                                                                                 <Button
                                                                                     variant="default"
                                                                                     size="sm"
@@ -724,6 +794,25 @@ export default function DetallesCampus() {
                                                                                     <span className="text-sm font-medium">Guardado</span>
                                                                                 </div>
                                                                             )}
+
+                                                                            {/* Botón de comentarios/observaciones - Para rol 20 y 16 */}
+                                                                            {canManageObservaciones && (
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="sm"
+                                                                                    onClick={() => handleOpenObservaciones(
+                                                                                        documentoPrincipal.sdi_id || documentoPrincipal.id,
+                                                                                        normalizarTexto(documentoPrincipal.tipo),
+                                                                                        documentoPrincipal.observaciones,
+                                                                                        documentoPrincipal.observaciones_archivo
+                                                                                    )}
+                                                                                    className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 relative transition-colors"
+                                                                                    title="Ver observaciones"
+                                                                                >
+                                                                                    <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                                                                </Button>
+                                                                            )}
+
                                                                             <Button
                                                                                 variant="ghost"
                                                                                 size="sm"
@@ -762,16 +851,6 @@ export default function DetallesCampus() {
                                                                                         <span className="text-xs">Archivo {idx + 2}</span>
                                                                                         {doc.carrera && <span className="text-xs">• {doc.carrera}</span>}
                                                                                     </div>
-                                                                                    {doc.observaciones && (
-                                                                                        <div className="text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 px-2 py-1 rounded">
-                                                                                            <span className="font-medium">Observaciones:</span> {doc.observaciones}
-                                                                                        </div>
-                                                                                    )}
-                                                                                    {doc.observaciones_archivo && (
-                                                                                        <div className="text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded">
-                                                                                            <span className="font-medium">Observaciones Archivo:</span> {doc.observaciones_archivo}
-                                                                                        </div>
-                                                                                    )}
                                                                                 </div>
                                                                             </td>
                                                                             <td className="px-6 py-3">
@@ -889,6 +968,18 @@ export default function DetallesCampus() {
                     )}
                 </div>
             </div>
+
+            {/* Modal de Observaciones */}
+            <ObservacionesModal
+                isOpen={observacionesModalOpen}
+                onClose={handleCloseObservaciones}
+                documentoInformacionId={selectedDocumentoId}
+                campusId={campus?.ID_Campus || ''}
+                documentoNombre={selectedDocumentoNombre}
+                isGlobalComment={isGlobalComment}
+                observacionesSistema={selectedObservacionesSistema}
+                observacionesArchivoSistema={selectedObservacionesArchivo}
+            />
         </AppLayout>
     );
 }

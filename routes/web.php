@@ -18,7 +18,7 @@ Route::get('/', function () {
 
 Route::get('access-denied', [AccessController::class, 'denied'])->name('access.denied');
 
-Route::middleware(['auth', 'verified', 'authorized.role'])->group(function () {
+Route::middleware(['auth', 'authorized.role'])->group(function () {
     Route::get('debug-roles', function () {
         $authUser = Auth::user();
 
@@ -273,6 +273,30 @@ Route::middleware(['auth', 'verified', 'authorized.role'])->group(function () {
         Route::get('debug-campus-list', [SupervisionController::class, 'debugCampusList'])->name('debug-campus-list');
         Route::get('debug-cd-acuna', [SupervisionController::class, 'debugCdAcuna'])->name('debug-cd-acuna');
         Route::get('{campus_hash}', [SupervisionController::class, 'detallesCampusPorSlug'])->name('detalles');
+    });
+
+    // Rutas de observaciones - Roles 13, 14, 16 y 20
+    Route::prefix('observaciones')->name('observaciones.')->middleware('role:13,14,16,20')->group(function () {
+        // Obtener todas las observaciones pendientes del usuario actual
+        Route::get('pendientes/todas', [\App\Http\Controllers\ObservacionesController::class, 'obtenerTodasPendientes'])->name('pendientes.todas');
+
+        // Observaciones de documentos específicos
+        Route::get('documento/{documentoInformacionId}', [\App\Http\Controllers\ObservacionesController::class, 'obtenerObservacionesDocumento'])->name('documento.listar');
+        Route::post('documento/{documentoInformacionId}/marcar-atendidas', [\App\Http\Controllers\ObservacionesController::class, 'marcarAtendidasDocumento'])->name('documento.marcar-atendidas');
+
+        // Observaciones generales del campus
+        Route::get('campus/{campusId}', [\App\Http\Controllers\ObservacionesController::class, 'obtenerObservacionesCampus'])->name('campus.listar');
+        Route::get('campus/{campusId}/todas', [\App\Http\Controllers\ObservacionesController::class, 'obtenerTodasObservacionesCampus'])->name('campus.todas');
+        Route::get('{campusId}/generales/count', [\App\Http\Controllers\ObservacionesController::class, 'contarObservacionesGeneralesCampus'])->name('campus.count');
+        Route::post('campus/{campusId}/marcar-atendidas', [\App\Http\Controllers\ObservacionesController::class, 'marcarAtendidasCampus'])->name('campus.marcar-atendidas');
+
+        // Roles 16 y 20 pueden crear, actualizar y eliminar observaciones
+        Route::middleware('role:16,20')->group(function () {
+            Route::post('documento', [\App\Http\Controllers\ObservacionesController::class, 'crearObservacionDocumento'])->name('documento.crear');
+            Route::post('campus', [\App\Http\Controllers\ObservacionesController::class, 'crearObservacionCampus'])->name('campus.crear');
+            Route::patch('{observacionId}/estatus', [\App\Http\Controllers\ObservacionesController::class, 'actualizarEstatus'])->name('actualizar-estatus');
+            Route::delete('{observacionId}', [\App\Http\Controllers\ObservacionesController::class, 'eliminar'])->name('eliminar');
+        });
     });
 
     // Otras rutas del campus
