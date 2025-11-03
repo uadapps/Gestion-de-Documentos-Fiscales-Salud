@@ -23,15 +23,6 @@ router.on('navigate', (event) => {
     }
 });
 
-// Listener global para prevenir caché en páginas de autenticación
-window.addEventListener('pageshow', (event) => {
-    // Si la página viene del bfcache (back-forward cache)
-    if (event.persisted) {
-        // Recargar la página para obtener datos frescos del servidor
-        window.location.reload();
-    }
-});
-
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
     resolve: (name) =>
