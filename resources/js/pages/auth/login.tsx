@@ -27,78 +27,21 @@ export default function Login({ status, canResetPassword }: LoginProps) {
 
     const features = [
      { icon: FileSearch, title: "Validación Inteligente", description: "Revisión automática de documentos y licencias" },
-{ icon: Database, title: "Almacenamiento Seguro", description: "Respaldo cifrado y acceso controlado" },
+{ icon: Shield, title: "Gestión Documental Inteligente", description: "Organiza, clasifica y actualiza automáticamente todos los archivos institucionales" },
 { icon: Clock, title: "Monitoreo en Tiempo Real", description: "Seguimiento continuo de vencimientos y actualizaciones" }
 
     ];
 
-    // VERIFICACIÓN INMEDIATA - antes de renderizar cualquier cosa
+    // Verificación simple - solo una vez al montar
     useEffect(() => {
-        // Si hay usuario autenticado, redirigir inmediatamente
+        // Si hay usuario autenticado al cargar, redirigir
         if (auth?.user) {
             router.visit('/dashboard', { replace: true });
         } else {
             // No hay usuario, permitir mostrar login
             setIsCheckingAuth(false);
         }
-    }, []);
-
-    // Función para verificar autenticación y redirigir
-    const checkAuthAndRedirect = () => {
-        if (auth?.user) {
-            router.visit('/dashboard', { replace: true });
-        }
-    };
-
-    // Verificar cuando cambia auth
-    useEffect(() => {
-        checkAuthAndRedirect();
-    }, [auth]);
-
-    // Verificar cuando la página se vuelve visible (botón atrás del navegador)
-    useEffect(() => {
-        const handleVisibilityChange = () => {
-            if (!document.hidden) {
-                // La página se volvió visible, forzar recarga desde servidor
-                window.location.href = '/dashboard';
-            }
-        };
-
-        const handlePageShow = (event: PageTransitionEvent) => {
-            // Detectar cuando se usa el botón atrás/adelante del navegador
-            if (event.persisted) {
-                // Página cargada desde bfcache, forzar recarga
-                window.location.href = '/dashboard';
-            }
-        };
-
-        const handleFocus = () => {
-            // Verificar cuando la ventana recupera el foco
-            if (auth?.user) {
-                window.location.href = '/dashboard';
-            }
-        };
-
-        const handlePopState = () => {
-            // Detectar navegación con botones del navegador
-            if (auth?.user) {
-                window.location.href = '/dashboard';
-            }
-        };
-
-        // Agregar listeners
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        window.addEventListener('pageshow', handlePageShow);
-        window.addEventListener('focus', handleFocus);
-        window.addEventListener('popstate', handlePopState);
-
-        return () => {
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-            window.removeEventListener('pageshow', handlePageShow);
-            window.removeEventListener('focus', handleFocus);
-            window.removeEventListener('popstate', handlePopState);
-        };
-    }, [auth]);
+    }, []); // Solo ejecutar una vez al montar
 
     useEffect(() => {
         // Solo iniciar animación si no estamos verificando auth
